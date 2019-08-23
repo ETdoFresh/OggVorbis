@@ -15,83 +15,75 @@
  Ported by: ETdoFresh
 
  ********************************************************************/
-
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <ogg/ogg.h>
-#include "vorbis/codec.h"
-#include "codec_internal.h"
-#include "os.h"
-#include "misc.h"
-#include "bitrate.h"
-
-/* compute bitrate tracking setup  */
-void vorbis_bitrate_init(vorbis_info* vi, bitrate_manager_state* bm)
+namespace OggVorbis
 {
-    codec_setup_info* ci = vi->codec_setup;
-    bitrate_manager_info* bi = &ci->bi;
-
-    memset(bm, 0, sizeof(*bm));
-
-    if (bi && (bi->reservoir_bits > 0))
+    public class bitrate
     {
-        long ratesamples = vi->rate;
-        int halfsamples = ci->blocksizes[0] >> 1;
-
-        bm->short_per_long = ci->blocksizes[1] / ci->blocksizes[0];
-        bm->managed = 1;
-
-        bm->avg_bitsper = rint(1.* bi->avg_rate * halfsamples / ratesamples);
-        bm->min_bitsper = rint(1.* bi->min_rate * halfsamples / ratesamples);
-        bm->max_bitsper = rint(1.* bi->max_rate * halfsamples / ratesamples);
-
-        bm->avgfloat = PACKETBLOBS / 2;
-
-        /* not a necessary fix, but one that leads to a more balanced
-           typical initialization */
+        /* compute bitrate tracking setup  */
+        public void vorbis_bitrate_init(vorbis_info* vi, bitrate_manager_state* bm)
         {
-            long desired_fill = bi->reservoir_bits * bi->reservoir_bias;
-            bm->minmax_reservoir = desired_fill;
-            bm->avg_reservoir = desired_fill;
+            codec_setup_info* ci = vi->codec_setup;
+            bitrate_manager_info* bi = &ci->bi;
+
+            memset(bm, 0, sizeof(*bm));
+
+            if (bi && (bi->reservoir_bits > 0))
+            {
+                long ratesamples = vi->rate;
+                int halfsamples = ci->blocksizes[0] >> 1;
+
+                bm->short_per_long = ci->blocksizes[1] / ci->blocksizes[0];
+                bm->managed = 1;
+
+                bm->avg_bitsper = rint(1.* bi->avg_rate * halfsamples / ratesamples);
+                bm->min_bitsper = rint(1.* bi->min_rate * halfsamples / ratesamples);
+                bm->max_bitsper = rint(1.* bi->max_rate * halfsamples / ratesamples);
+
+                bm->avgfloat = PACKETBLOBS / 2;
+
+                /* not a necessary fix, but one that leads to a more balanced
+                   typical initialization */
+                {
+                    long desired_fill = bi->reservoir_bits * bi->reservoir_bias;
+                    bm->minmax_reservoir = desired_fill;
+                    bm->avg_reservoir = desired_fill;
+                }
+            }
         }
 
-    }
-}
+        public void vorbis_bitrate_clear(bitrate_manager_state* bm)
+        {
+            memset(bm, 0, sizeof(*bm));
+            return;
+        }
 
-void vorbis_bitrate_clear(bitrate_manager_state* bm)
-{
-    memset(bm, 0, sizeof(*bm));
-    return;
-}
+        public int vorbis_bitrate_managed(vorbis_block* vb)
+        {
+            vorbis_dsp_state* vd = vb->vd;
+            private_state* b = vd->backend_state;
+            bitrate_manager_state* bm = &b->bms;
 
-int vorbis_bitrate_managed(vorbis_block* vb)
-{
-    vorbis_dsp_state* vd = vb->vd;
-    private_state* b = vd->backend_state;
-    bitrate_manager_state* bm = &b->bms;
+            if (bm && bm->managed) return (1);
+            return (0);
+        }
 
-    if (bm && bm->managed) return (1);
-    return (0);
-}
+        /* finish taking in the block we just processed */
+        public int vorbis_bitrate_addblock(vorbis_block* vb)
+        {
+            vorbis_block_internal* vbi = vb->internal;
+            vorbis_dsp_state* vd = vb->vd;
+        private_state* b = vd->backend_state;
+        bitrate_manager_state* bm = &b->bms;
+        vorbis_info* vi = vd->vi;
+        codec_setup_info* ci = vi->codec_setup;
+        bitrate_manager_info* bi = &ci->bi;
 
-/* finish taking in the block we just processed */
-int vorbis_bitrate_addblock(vorbis_block* vb)
-{
-    vorbis_block_internal* vbi = vb->internal;
-  vorbis_dsp_state* vd = vb->vd;
-private_state* b = vd->backend_state;
-bitrate_manager_state* bm = &b->bms;
-vorbis_info* vi = vd->vi;
-codec_setup_info* ci = vi->codec_setup;
-bitrate_manager_info* bi = &ci->bi;
-
-int choice = rint(bm->avgfloat);
-long this_bits = oggpack_bytes(vbi->packetblob[choice]) * 8;
-long min_target_bits = (vb->W ? bm->min_bitsper * bm->short_per_long : bm->min_bitsper);
-long max_target_bits = (vb->W ? bm->max_bitsper * bm->short_per_long : bm->max_bitsper);
-int samples = ci->blocksizes[vb->W] >> 1;
-long desired_fill = bi->reservoir_bits * bi->reservoir_bias;
+        int choice = rint(bm->avgfloat);
+        long this_bits = oggpack_bytes(vbi->packetblob[choice]) * 8;
+        long min_target_bits = (vb->W ? bm->min_bitsper * bm->short_per_long : bm->min_bitsper);
+        long max_target_bits = (vb->W ? bm->max_bitsper * bm->short_per_long : bm->max_bitsper);
+        int samples = ci->blocksizes[vb->W] >> 1;
+        long desired_fill = bi->reservoir_bits * bi->reservoir_bias;
   if(!bm->managed){
     /* not a bitrate managed stream, but for API simplicity, we'll
        buffer the packet to keep the code path clean */
@@ -102,13 +94,13 @@ long desired_fill = bi->reservoir_bits * bi->reservoir_bias;
     return(0);
   }
 
-  bm->vb=vb;
+    bm->vb=vb;
 
   /* look ahead for avg floater */
   if(bm->avg_bitsper>0){
     double slew = 0.;
-long avg_target_bits = (vb->W ? bm->avg_bitsper * bm->short_per_long : bm->avg_bitsper);
-double slewlimit = 15./ bi->slew_damp;
+    long avg_target_bits = (vb->W ? bm->avg_bitsper * bm->short_per_long : bm->avg_bitsper);
+    double slewlimit = 15./ bi->slew_damp;
 
     /* choosing a new floater:
        if we're over target, we slew down
@@ -260,34 +252,33 @@ op->b_o_s=0;
   return(1);
 }
 
-    /* encode side bitrate tracking */
-typedef struct bitrate_manager_state
-{
-    int managed;
+        /* encode side bitrate tracking */
+        public struct bitrate_manager_state
+        {
+            public int managed;
 
-    long avg_reservoir;
-    long minmax_reservoir;
-    long avg_bitsper;
-    long min_bitsper;
-    long max_bitsper;
+            public long avg_reservoir;
+            public long minmax_reservoir;
+            public long avg_bitsper;
+            public long min_bitsper;
+            public long max_bitsper;
 
-    long short_per_long;
-    double avgfloat;
+            public long short_per_long;
+            public double avgfloat;
 
-    vorbis_block* vb;
-    int choice;
+            public vorbis_block* vb;
+            public int choice;
+        }
+
+        public struct bitrate_manager_info
+        {
+            public long avg_rate;
+            public long min_rate;
+            public long max_rate;
+            public long reservoir_bits;
+            public double reservoir_bias;
+
+            public double slew_damp;
+        }
+    }
 }
-bitrate_manager_state;
-
-typedef struct bitrate_manager_info
-{
-    long avg_rate;
-    long min_rate;
-    long max_rate;
-    long reservoir_bits;
-    double reservoir_bias;
-
-    double slew_damp;
-
-}
-bitrate_manager_info;

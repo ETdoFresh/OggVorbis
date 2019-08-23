@@ -17,133 +17,121 @@
 
  ********************************************************************/
 
-/* this is exposed up here because we need it for static modes.
-   Lookups for each backend aren't exposed because there's no reason
-   to do so */
-
-#ifndef _vorbis_backend_h_
-#define _vorbis_backend_h_
-
-#include "codec_internal.h"
-
-/* this would all be simpler/shorter with templates, but.... */
-/* Floor backend generic *****************************************/
-typedef struct{
-  void (* pack) (vorbis_info_floor*, oggpack_buffer*);
-  vorbis_info_floor* (* unpack) (vorbis_info*, oggpack_buffer*);
-  vorbis_look_floor* (* look) (vorbis_dsp_state*, vorbis_info_floor*);
-  void (* free_info) (vorbis_info_floor*);
-  void (* free_look) (vorbis_look_floor*);
-  void* (* inverse1) (struct vorbis_block *,vorbis_look_floor*);
-  int (* inverse2) (struct vorbis_block *,vorbis_look_floor*,
-                     void* buffer,float*);
-} vorbis_func_floor;
-
-typedef struct{
-  int order;
-long rate;
-long barkmap;
-
-int ampbits;
-int ampdB;
-
-int numbooks; /* <= 16 */
-int books[16];
-
-float lessthan;     /* encode-only config setting hacks for libvorbis */
-float greaterthan;  /* encode-only config setting hacks for libvorbis */
-
-} vorbis_info_floor0;
-
-
-#define VIF_POSIT 63
-#define VIF_CLASS 16
-#define VIF_PARTS 31
-typedef struct{
-  int partitions;                /* 0 to 31 */
-int partitionclass[VIF_PARTS]; /* 0 to 15 */
-
-int class_dim[VIF_CLASS];        /* 1 to 8 */
-int class_subs[VIF_CLASS];       /* 0,1,2,3 (bits: 1<<n poss) */
-int class_book[VIF_CLASS];       /* subs ^ dim entries */
-int class_subbook[VIF_CLASS][8]; /* [VIF_CLASS][subs] */
-
-
-  int mult;                      /* 1 2 3 or 4 */
-int postlist[VIF_POSIT + 2];    /* first two implicit */
-
-
-/* encode side analysis parameters */
-float maxover;
-float maxunder;
-float maxerr;
-
-float twofitweight;
-float twofitatten;
-
-int n;
-
-} vorbis_info_floor1;
-
-/* Residue backend generic *****************************************/
-typedef struct{
-  void (* pack) (vorbis_info_residue*, oggpack_buffer*);
-  vorbis_info_residue* (* unpack) (vorbis_info*, oggpack_buffer*);
-  vorbis_look_residue* (* look) (vorbis_dsp_state*,
-                                 vorbis_info_residue*);
-  void (* free_info) (vorbis_info_residue*);
-  void (* free_look) (vorbis_look_residue*);
-  long** (*class)      (struct vorbis_block *,vorbis_look_residue*,
-                        int**,int*,int);
-  int (* forward) (oggpack_buffer*,struct vorbis_block *,
-                        vorbis_look_residue*,
-                        int**,int*,int,long**,int);
-  int (* inverse) (struct vorbis_block *,vorbis_look_residue*,
-                        float**,int*,int);
-} vorbis_func_residue;
-
-typedef struct vorbis_info_residue0
+namespace OggVorbis
 {
-    /* block-partitioned VQ coded straight residue */
-    long begin;
-    long end;
+    public class backends
+    {
+        /* this would all be simpler/shorter with templates, but.... */
+        /* Floor backend generic *****************************************/
+        public struct vorbis_func_floor
+        {
+            public void pack(vorbis_info_floor*, oggpack_buffer*);
+            public vorbis_info_floor* (* unpack) (vorbis_info*, oggpack_buffer*);
+            public vorbis_look_floor* (* look) (vorbis_dsp_state*, vorbis_info_floor*);
+            public void (* free_info) (vorbis_info_floor*);
+            public void (* free_look) (vorbis_look_floor*);
+            public void* (* inverse1) (vorbis_block vorbis_look_floor*);
+            public int (* inverse2) vorbis_block vorbis_look_floor*, void* buffer,float*);
+        }
 
-    /* first stage (lossless partitioning) */
-    int grouping;         /* group n vectors per partition */
-    int partitions;       /* possible codebooks for a partition */
-    int partvals;         /* partitions ^ groupbook dim */
-    int groupbook;        /* huffbook for partitioning */
-    int secondstages[64]; /* expanded out to pointers in lookup */
-    int booklist[512];    /* list of second stage books */
+        public struct vorbis_info_floor0
+        {
+            public int order;
+            public long rate;
+            public long barkmap;
 
-    const int classmetric1[64];
-    const int classmetric2[64];
+            public int ampbits;
+            public int ampdB;
+
+            public int numbooks; /* <= 16 */
+            public int books[16];
+
+            public float lessthan;     /* encode-only config setting hacks for libvorbis */
+            public float greaterthan;  /* encode-only config setting hacks for libvorbis */
+        }
+
+
+        public const int VIF_POSIT = 63;
+        public const int VIF_CLASS = 16;
+        public const int VIF_PARTS = 31;
+
+        public struct vorbis_info_floor1
+        {
+            public int partitions;                /* 0 to 31 */
+            public int partitionclass[VIF_PARTS]; /* 0 to 15 */
+
+            public int class_dim[VIF_CLASS];        /* 1 to 8 */
+            public int class_subs[VIF_CLASS];       /* 0,1,2,3 (bits: 1<<n poss) */
+            public int class_book[VIF_CLASS];       /* subs ^ dim entries */
+            public int class_subbook[VIF_CLASS][8]; /* [VIF_CLASS][subs] */
+
+            public int mult;                      /* 1 2 3 or 4 */
+            public int postlist[VIF_POSIT + 2];    /* first two implicit */
+
+            /* encode side analysis parameters */
+            public float maxover;
+            public float maxunder;
+            public float maxerr;
+
+            public float twofitweight;
+            public float twofitatten;
+
+            public int n;
+        }
+
+        /* Residue backend generic *****************************************/
+        public struct vorbis_func_residue
+        {
+            public void (* pack) (vorbis_info_residue*, oggpack_buffer*);
+            public vorbis_info_residue* (* unpack) (vorbis_info*, oggpack_buffer*);
+            public vorbis_look_residue* (* look) (vorbis_dsp_state*, vorbis_info_residue*);
+            public void (* free_info) (vorbis_info_residue*);
+            public void (* free_look) (vorbis_look_residue*);
+            public long** (*class)      (struct vorbis_block *,vorbis_look_residue*, int**,int*,int);
+            public int (* forward) (oggpack_buffer*,struct vorbis_block *, vorbis_look_residue*, int**,int*,int,long**,int);
+            public int (* inverse) (struct vorbis_block *,vorbis_look_residue*, float**,int*,int);
+        }
+
+        public struct vorbis_info_residue0
+        {
+            /* block-partitioned VQ coded straight residue */
+            public long begin;
+            public long end;
+
+            /* first stage (lossless partitioning) */
+            public int grouping;         /* group n vectors per partition */
+            public int partitions;       /* possible codebooks for a partition */
+            public int partvals;         /* partitions ^ groupbook dim */
+            public int groupbook;        /* huffbook for partitioning */
+            public int secondstages[64]; /* expanded out to pointers in lookup */
+            public int booklist[512];    /* list of second stage books */
+
+            public readonly int classmetric1[64];
+            public readonly int classmetric2[64];
+        }
+
+        /* Mapping backend generic *****************************************/
+        public struct vorbis_func_mapping
+        {
+            public void (* pack) (vorbis_info*, vorbis_info_mapping*, oggpack_buffer*);
+            public vorbis_info_mapping* (* unpack) (vorbis_info*, oggpack_buffer*);
+            public void (* free_info) (vorbis_info_mapping*);
+            public int (* forward) (struct vorbis_block * vb);
+            public int (* inverse) (struct vorbis_block * vb, vorbis_info_mapping*);
+        }
+
+        public struct vorbis_info_mapping0
+        {
+            public int submaps;  /* <= 16 */
+            public int chmuxlist[256];   /* up to 256 channels in a Vorbis stream */
+
+            public int floorsubmap[16];   /* [mux] submap to floors */
+            public int residuesubmap[16]; /* [mux] submap to residue */
+
+            public int coupling_steps;
+            public int coupling_mag[256];
+            public int coupling_ang[256];
+
+        }
+    }
 }
-vorbis_info_residue0;
-
-/* Mapping backend generic *****************************************/
-typedef struct{
-  void (* pack) (vorbis_info*, vorbis_info_mapping*,
-                 oggpack_buffer*);
-  vorbis_info_mapping* (* unpack) (vorbis_info*, oggpack_buffer*);
-  void (* free_info) (vorbis_info_mapping*);
-  int (* forward) (struct vorbis_block * vb);
-  int (* inverse) (struct vorbis_block * vb, vorbis_info_mapping *);
-} vorbis_func_mapping;
-
-typedef struct vorbis_info_mapping0
-{
-    int submaps;  /* <= 16 */
-    int chmuxlist[256];   /* up to 256 channels in a Vorbis stream */
-
-    int floorsubmap[16];   /* [mux] submap to floors */
-    int residuesubmap[16]; /* [mux] submap to residue */
-
-    int coupling_steps;
-    int coupling_mag[256];
-    int coupling_ang[256];
-
-}
-vorbis_info_mapping0;
-
-#endif
