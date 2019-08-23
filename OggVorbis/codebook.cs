@@ -16,19 +16,9 @@
 
  ********************************************************************/
 
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <ogg/ogg.h>
-#include "vorbis/codec.h"
-#include "codebook.h"
-#include "scales.h"
-#include "misc.h"
-#include "os.h"
-
 /* packs the given codebook into the bitstream **************************/
 
-int vorbis_staticbook_pack(const static_codebook* c, oggpack_buffer* opb)
+public int vorbis_staticbook_pack(const static_codebook* c, oggpack_buffer* opb)
 {
     long i, j;
     int ordered = 0;
@@ -165,7 +155,7 @@ int vorbis_staticbook_pack(const static_codebook* c, oggpack_buffer* opb)
 
 /* unpacks a codebook from the packet buffer into the codebook struct,
    readies the codebook auxiliary structures for decode *************/
-static_codebook* vorbis_staticbook_unpack(oggpack_buffer* opb)
+public static_codebook* vorbis_staticbook_unpack(oggpack_buffer* opb)
 {
     long i, j;
     static_codebook* s = _ogg_calloc(1, sizeof(*s));
@@ -305,7 +295,7 @@ static_codebook* vorbis_staticbook_unpack(oggpack_buffer* opb)
 }
 
 /* returns the number of bits ************************************************/
-int vorbis_book_encode(codebook* book, int a, oggpack_buffer* b)
+public int vorbis_book_encode(codebook* book, int a, oggpack_buffer* b)
 {
     if (a < 0 || a >= book->c->entries) return (0);
     oggpack_write(b, book->codelist[a], book->c->lengthlist[a]);
@@ -320,7 +310,7 @@ int vorbis_book_encode(codebook* book, int a, oggpack_buffer* b)
    be.  The first-stage decode table catches most words so that
    bitreverse is not in the main execution path. */
 
-static ogg_uint32_t bitreverse(ogg_uint32_t x)
+public static ogg_uint32_t bitreverse(ogg_uint32_t x)
 {
     x = ((x >> 16) & 0x0000ffff) | ((x << 16) & 0xffff0000);
     x = ((x >> 8) & 0x00ff00ff) | ((x << 8) & 0xff00ff00);
@@ -329,7 +319,7 @@ static ogg_uint32_t bitreverse(ogg_uint32_t x)
     return ((x >> 1) & 0x55555555) | ((x << 1) & 0xaaaaaaaa);
 }
 
-STIN long decode_packed_entry_number(codebook* book, oggpack_buffer* b)
+public STIN long decode_packed_entry_number(codebook* book, oggpack_buffer* b)
 {
     int read = book->dec_maxlength;
     long lo, hi;
@@ -406,7 +396,7 @@ STIN long decode_packed_entry_number(codebook* book, oggpack_buffer* b)
    addmul==2 -> multiplicitive */
 
 /* returns the [original, not compacted] entry number or -1 on eof *********/
-long vorbis_book_decode(codebook* book, oggpack_buffer* b)
+public long vorbis_book_decode(codebook* book, oggpack_buffer* b)
 {
     if (book->used_entries > 0)
     {
@@ -421,7 +411,7 @@ long vorbis_book_decode(codebook* book, oggpack_buffer* b)
 
 /* returns 0 on OK or -1 on eof *************************************/
 /* decode vector / dim granularity gaurding is done in the upper layer */
-long vorbis_book_decodevs_add(codebook* book, float* a, oggpack_buffer* b, int n)
+public long vorbis_book_decodevs_add(codebook* book, float* a, oggpack_buffer* b, int n)
 {
     if (book->used_entries > 0)
     {
@@ -444,7 +434,7 @@ long vorbis_book_decodevs_add(codebook* book, float* a, oggpack_buffer* b, int n
 }
 
 /* decode vector / dim granularity gaurding is done in the upper layer */
-long vorbis_book_decodev_add(codebook* book, float* a, oggpack_buffer* b, int n)
+public long vorbis_book_decodev_add(codebook* book, float* a, oggpack_buffer* b, int n)
 {
     if (book->used_entries > 0)
     {
@@ -466,7 +456,7 @@ long vorbis_book_decodev_add(codebook* book, float* a, oggpack_buffer* b, int n)
 /* unlike the others, we guard against n not being an integer number
    of <dim> internally rather than in the upper layer (called only by
    floor0) */
-long vorbis_book_decodev_set(codebook* book, float* a, oggpack_buffer* b, int n)
+public long vorbis_book_decodev_set(codebook* book, float* a, oggpack_buffer* b, int n)
 {
     if (book->used_entries > 0)
     {
@@ -496,7 +486,7 @@ long vorbis_book_decodev_set(codebook* book, float* a, oggpack_buffer* b, int n)
     return (0);
 }
 
-long vorbis_book_decodevv_add(codebook* book, float** a, long offset, int ch,
+public long vorbis_book_decodevv_add(codebook* book, float** a, long offset, int ch,
                               oggpack_buffer* b, int n)
 {
 
@@ -539,52 +529,50 @@ long vorbis_book_decodevv_add(codebook* book, float** a, long offset, int ch,
 
 */
 
-typedef struct static_codebook
+public struct static_codebook
 {
-    long dim;           /* codebook dimensions (elements per vector) */
-    long entries;       /* codebook entries */
-    char* lengthlist;    /* codeword lengths in bits */
+    public long dim;           /* codebook dimensions (elements per vector) */
+    public long entries;       /* codebook entries */
+    public char* lengthlist;    /* codeword lengths in bits */
 
     /* mapping ***************************************************************/
-    int maptype;       /* 0=none
-                           1=implicitly populated values from map column
-                           2=listed arbitrary values */
+    public int maptype;       /* 0=none
+                              1=implicitly populated values from map column
+                              2=listed arbitrary values */
 
     /* The below does a linear, single monotonic sequence mapping. */
-    long q_min;       /* packed 32 bit float; quant value 0 maps to minval */
-    long q_delta;     /* packed 32 bit float; val 1 - val 0 == delta */
-    int q_quant;     /* bits: 0 < quant <= 16 */
-    int q_sequencep; /* bitflag */
+    public long q_min;       /* packed 32 bit float; quant value 0 maps to minval */
+    public long q_delta;     /* packed 32 bit float; val 1 - val 0 == delta */
+    public int q_quant;     /* bits: 0 < quant <= 16 */
+    public int q_sequencep; /* bitflag */
 
-    long* quantlist;  /* map == 1: (int)(entries^(1/dim)) element column map
-                           map == 2: list of dim*entries quantized entry vals
-                        */
-    int allocedp;
+    public long* quantlist;  /* map == 1: (int)(entries^(1/dim)) element column map
+                               map == 2: list of dim*entries quantized entry vals
+                             */
+    public int allocedp;
 }
-static_codebook;
 
-typedef struct codebook
+public struct codebook
 {
-    long dim;           /* codebook dimensions (elements per vector) */
-    long entries;       /* codebook entries */
-    long used_entries;  /* populated codebook entries */
-    const static_codebook* c;
+    public long dim;           /* codebook dimensions (elements per vector) */
+    public long entries;       /* codebook entries */
+    public long used_entries;  /* populated codebook entries */
+    public const static_codebook* c;
 
     /* for encode, the below are entry-ordered, fully populated */
     /* for decode, the below are ordered by bitreversed codeword and only
        used entries are populated */
-    float* valuelist;  /* list of dim*entries actual entry values */
-    ogg_uint32_t* codelist;   /* list of bitstream codewords for each entry */
+    public float* valuelist;  /* list of dim*entries actual entry values */
+    public ogg_uint32_t* codelist;   /* list of bitstream codewords for each entry */
 
-    int* dec_index;  /* only used if sparseness collapsed */
-    char* dec_codelengths;
-    ogg_uint32_t* dec_firsttable;
-    int dec_firsttablen;
-    int dec_maxlength;
+    public int* dec_index;  /* only used if sparseness collapsed */
+    public char* dec_codelengths;
+    public ogg_uint32_t* dec_firsttable;
+    public int dec_firsttablen;
+    public int dec_maxlength;
 
     /* The current encoder uses only centered, integer-only lattice books. */
-    int quantvals;
-    int minval;
-    int delta;
+    public int quantvals;
+    public int minval;
+    public int delta;
 }
-codebook;

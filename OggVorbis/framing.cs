@@ -19,16 +19,10 @@
 
  ********************************************************************/
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include <stdlib.h>
-#include <limits.h>
-#include <string.h>
-#include <ogg/ogg.h>
-
 /* A complete description of Ogg framing exists in docs/framing.html */
+
+using System;
+using static OggVorbis.ogg;
 
 int ogg_page_version(const ogg_page* og)
 {
@@ -605,77 +599,85 @@ int ogg_stream_eos(ogg_stream_state* os)
    ogg_stream_state. */
 
 /* initialize the struct to a known state */
-int ogg_sync_init(ogg_sync_state* oy)
+namespace OggVorbis
 {
-    if (oy)
+    public class framing
     {
-        oy->storage = -1; /* used as a readiness flag */
-        memset(oy, 0, sizeof(*oy));
-    }
-    return (0);
-}
-
-/* clear non-flat storage within */
-int ogg_sync_clear(ogg_sync_state* oy)
-{
-    if (oy)
-    {
-        if (oy->data) _ogg_free(oy->data);
-        memset(oy, 0, sizeof(*oy));
-    }
-    return (0);
-}
-
-int ogg_sync_destroy(ogg_sync_state* oy)
-{
-    if (oy)
-    {
-        ogg_sync_clear(oy);
-        _ogg_free(oy);
-    }
-    return (0);
-}
-
-int ogg_sync_check(ogg_sync_state* oy)
-{
-    if (oy->storage < 0) return -1;
-    return 0;
-}
-
-char* ogg_sync_buffer(ogg_sync_state* oy, long size)
-{
-    if (ogg_sync_check(oy)) return NULL;
-
-    /* first, clear out any space that has been previously returned */
-    if (oy->returned)
-    {
-        oy->fill -= oy->returned;
-        if (oy->fill > 0)
-            memmove(oy->data, oy->data + oy->returned, oy->fill);
-        oy->returned = 0;
-    }
-
-    if (size > oy->storage - oy->fill)
-    {
-        /* We need to extend the internal buffer */
-        long newsize = size + oy->fill + 4096; /* an extra page to be nice */
-        void* ret;
-
-        if (oy->data)
-            ret = _ogg_realloc(oy->data, newsize);
-        else
-            ret = _ogg_malloc(newsize);
-        if (!ret)
+        public static int ogg_sync_init(ogg_sync_state oy)
         {
-            ogg_sync_clear(oy);
-            return NULL;
+            //if (oy)
+            //{
+            oy.storage = -1; /* used as a readiness flag */
+                             //memset(oy, 0, sizeof(*oy));
+                             //}
+            return 0;
         }
-        oy->data = ret;
-        oy->storage = newsize;
-    }
 
-    /* expose a segment at least as large as requested at the fill mark */
-    return ((char*)oy->data + oy->fill);
+
+        /* clear non-flat storage within */
+        public int ogg_sync_clear(ogg_sync_state* oy)
+        {
+            if (oy)
+            {
+                if (oy->data) _ogg_free(oy->data);
+                memset(oy, 0, sizeof(*oy));
+            }
+            return (0);
+        }
+
+        public int ogg_sync_destroy(ogg_sync_state* oy)
+        {
+            if (oy)
+            {
+                ogg_sync_clear(oy);
+                _ogg_free(oy);
+            }
+            return (0);
+        }
+
+        public static int ogg_sync_check(ogg_sync_state oy)
+        {
+            if (oy.storage < 0) return -1;
+            return 0;
+        }
+
+        public static byte[] ogg_sync_buffer(ogg_sync_state oy, long size)
+        {
+            if (ogg_sync_check(oy) != 0) return null;
+
+            /* first, clear out any space that has been previously returned */
+            if (oy.returned != 0)
+            {
+                oy.fill -= oy.returned;
+                if (oy.fill > 0)
+                    Array.Copy(oy.data, oy.returned, oy.data, 0, oy.fill);
+                    //memmove(oy.data, oy.data + oy.returned, oy.fill);
+                oy.returned = 0;
+            }
+
+            if (size > oy.storage - oy.fill)
+            {
+                /* We need to extend the internal buffer */
+                long newsize = size + oy.fill + 4096; /* an extra page to be nice */
+                byte[] ret;
+
+                if (oy.data != null)
+                    ret = _ogg_realloc(oy.data, newsize);
+                else
+                    ret = _ogg_malloc(newsize);
+                if (ret == null)
+                {
+                    ogg_sync_clear(oy);
+                    return null;
+                }
+                oy.data = ret;
+                oy.storage = (int)newsize;
+            }
+
+            /* expose a segment at least as large as requested at the fill mark */
+            return ((char*)oy.data + oy.fill);
+        }
+    }
 }
 
 int ogg_sync_wrote(ogg_sync_state* oy, long bytes)
@@ -2257,5 +2259,3 @@ int main(void)
 
     return (0);
 }
-
-#endif

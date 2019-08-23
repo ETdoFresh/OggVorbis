@@ -15,7 +15,9 @@
  Ported by: ETdoFresh
 
  ********************************************************************/
-namespace OggVorbis
+using ogg_int64_t = System.Int64;
+
+ namespace OggVorbis
 {
     public class codec
     {
@@ -45,7 +47,7 @@ namespace OggVorbis
             public long bitrate_lower;
             public long bitrate_window;
 
-            public void* codec_setup;
+            public object codec_setup;
         }
 
         /* vorbis_dsp_state buffers the current vorbis audio
@@ -78,7 +80,7 @@ namespace OggVorbis
             public ogg_int64_t floor_bits;
             public ogg_int64_t res_bits;
 
-            public void* backend_state;
+            public object backend_state;
         }
 
         public struct vorbis_block
@@ -100,11 +102,11 @@ namespace OggVorbis
 
             /* local storage to avoid remallocing; it's up to the mapping to
                structure it */
-            public void* localstore;
+            public object localstore;
             public long localtop;
             public long localalloc;
             public long totaluse;
-            public alloc_chain* reap;
+            public alloc_chain[] reap;
 
             /* bitmetrics for the frame */
             public long glue_bits;
@@ -112,7 +114,7 @@ namespace OggVorbis
             public long floor_bits;
             public long res_bits;
 
-            public void* @internal;
+            public object @internal;
         }
 
         /* vorbis_block is a single block of data to be processed as part of
@@ -120,10 +122,10 @@ namespace OggVorbis
         bitstream, but is independent from other vorbis_blocks belonging to
         that logical bitstream. *************************************************/
 
-        public struct alloc_chain
+        public class alloc_chain
         {
-            public void* ptr;
-            public alloc_chain* next;
+            public object ptr;
+            public alloc_chain next;
         }
 
         /* vorbis_info contains all the setup information specific to the

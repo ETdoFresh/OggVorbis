@@ -15,20 +15,8 @@
  Ported by: ETdoFresh
 
  ********************************************************************/
-
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <math.h>
-#include <ogg/ogg.h>
-#include "vorbis/codec.h"
-#include "codec_internal.h"
-
-#include "os.h"
-#include "scales.h"
-#include "envelope.h"
-#include "mdct.h"
-#include "misc.h"
+namespace OggVorbis { 
+    public class envelope { 
 
 void _ve_envelope_init(envelope_lookup* e, vorbis_info* vi)
 {
@@ -451,3 +439,4 @@ long current;
 long curmark;
 long cursor;
 } envelope_lookup;
+    }}

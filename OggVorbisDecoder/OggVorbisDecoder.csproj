@@ -49,5 +49,11 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OggVorbis\OggVorbis.csproj">
+      <Project>{86d79325-f4ca-4cfa-9215-4943fe9c9cb0}</Project>
+      <Name>OggVorbis</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
