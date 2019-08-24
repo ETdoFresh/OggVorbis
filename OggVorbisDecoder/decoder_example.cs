@@ -18,8 +18,10 @@
 using System;
 using static OggVorbis.codec;
 using static OggVorbis.ogg;
+using static OggVorbis.os_types;
 using static OggVorbis.framing;
 using ogg_int16_t = System.Int16;
+using System.IO;
 
 /* Takes a vorbis bitstream from stdin and writes raw stereo PCM to
    stdout. Decodes simple and chained OggVorbis files from beginning
@@ -29,8 +31,11 @@ namespace OggVorbis
     public class decoder_example
     {
         /* Note that this is POSIX, not ANSI code */
-        ogg_int16_t[] convbuffer = new ogg_int16_t[4096]; /* take 8k out of the data segment, not the stack */
-        int convsize = 4096;
+        static ogg_int16_t[] convbuffer = new ogg_int16_t[4096]; /* take 8k out of the data segment, not the stack */
+        static int convsize = 4096;
+        static Stream stdin = Console.OpenStandardInput();
+        static Stream stdout = Console.OpenStandardOutput();
+        static Stream stderr = Console.OpenStandardError();
 
         public static void Main(string[] args)
         {
@@ -66,10 +71,10 @@ namespace OggVorbis
                 /* submit a 4k block to libvorbis' Ogg layer */
                 buffer = ogg_sync_buffer(oy, 4096);
                 bytes = fread(buffer, 1, 4096, stdin);
-                ogg_sync_wrote(&oy, bytes);
+                ogg_sync_wrote(oy, bytes);
 
                 /* Get the first page. */
-                if (ogg_sync_pageout(&oy, &og) != 1)
+                if (ogg_sync_pageout(oy, og) != 1)
                 {
                     /* have we simply run out of data?  If so, we're done. */
                     if (bytes < 4096) break;
@@ -81,7 +86,7 @@ namespace OggVorbis
 
                 /* Get the serial number and set up the rest of decode. */
                 /* serialno first; use it to set up a logical stream */
-                ogg_stream_init(&os, ogg_page_serialno(&og));
+                ogg_stream_init(os, ogg_page_serialno(og));
 
                 /* extract the initial header from the first page and verify that the
                    Ogg bitstream is in fact Vorbis data */
@@ -91,30 +96,26 @@ namespace OggVorbis
                    header is an easy way to identify a Vorbis bitstream and it's
                    useful to see that functionality seperated out. */
 
-                vorbis_info_init(&vi);
-                vorbis_comment_init(&vc);
-                if (ogg_stream_pagein(&os, &og) < 0)
+                vorbis_info_init(vi);
+                vorbis_comment_init(vc);
+                if (ogg_stream_pagein(os, og) < 0)
                 {
                     /* error; stream version mismatch perhaps */
                     fprintf(stderr, "Error reading first page of Ogg bitstream data.\n");
                     exit(1);
                 }
 
-                if (ogg_stream_packetout(&os, &op) != 1)
+                if (ogg_stream_packetout(os, op) != 1)
                 {
                     /* no page? must not be vorbis */
                     fprintf(stderr, "Error reading initial header packet.\n");
                     exit(1);
                 }
 
-                if (vorbis_synthesis_headerin(&vi, &vc, &op) < 0)
+                if (vorbis_synthesis_headerin(vi, vc, op) < 0)
                 {
                     /* error case; not a vorbis header */
-                    fprintf(stderr, "This Ogg bitstream does not contain Vorbis "
-
-
-
-                            "audio data.\n");
+                    fprintf(stderr, "This Ogg bitstream does not contain Vorbis audio data.\n");
                     exit(1);
                 }
 
@@ -133,18 +134,18 @@ namespace OggVorbis
                 {
                     while (i < 2)
                     {
-                        int result = ogg_sync_pageout(&oy, &og);
+                        int result = ogg_sync_pageout(oy, og);
                         if (result == 0) break; /* Need more data */
                                                 /* Don't complain about missing or corrupt data yet. We'll
                                                    catch it at the packet output phase */
                         if (result == 1)
                         {
-                            ogg_stream_pagein(&os, &og); /* we can ignore any errors here
+                            ogg_stream_pagein(os, og); /* we can ignore any errors here
                                          as they'll also become apparent
                                          at packetout */
                             while (i < 2)
                             {
-                                result = ogg_stream_packetout(&os, &op);
+                                result = ogg_stream_packetout(os, op);
                                 if (result == 0) break;
                                 if (result < 0)
                                 {
@@ -153,7 +154,7 @@ namespace OggVorbis
                                     fprintf(stderr, "Corrupt secondary header.  Exiting.\n");
                                     exit(1);
                                 }
-                                result = vorbis_synthesis_headerin(&vi, &vc, &op);
+                                result = vorbis_synthesis_headerin(vi, vc, op);
                                 if (result < 0)
                                 {
                                     fprintf(stderr, "Corrupt secondary header.  Exiting.\n");
@@ -164,14 +165,14 @@ namespace OggVorbis
                         }
                     }
                     /* no harm in not checking before adding more */
-                    buffer = ogg_sync_buffer(&oy, 4096);
+                    buffer = ogg_sync_buffer(oy, 4096);
                     bytes = fread(buffer, 1, 4096, stdin);
                     if (bytes == 0 && i < 2)
                     {
                         fprintf(stderr, "End of file before finding all Vorbis headers!\n");
                         exit(1);
                     }
-                    ogg_sync_wrote(&oy, bytes);
+                    ogg_sync_wrote(oy, bytes);
                 }
 
                 /* Throw the comments plus a few lines about the bitstream we're
@@ -321,7 +322,7 @@ namespace OggVorbis
             }
 
             /* OK, clean up the framer */
-            ogg_sync_clear(&oy);
+            ogg_sync_clear(oy);
 
             fprintf(stderr, "Done.\n");
             return (0);

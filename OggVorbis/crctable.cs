@@ -18,7 +18,7 @@ using ogg_uint32_t = System.UInt32;
 
 namespace OggVorbis
 {
-    public class ctctable
+    public class crctable
     {
 
         public static readonly ogg_uint32_t[][] crc_lookup = { new ogg_uint32_t[]

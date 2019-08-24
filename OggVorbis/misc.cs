@@ -15,6 +15,7 @@
  Ported by: ETdoFresh
 
  ********************************************************************/
+using static OggVorbis.os_types;
 
 #ifndef _V_RANDOM_H_
 #define _V_RANDOM_H_
@@ -49,6 +50,17 @@ extern void _VDBG_free(void* ptr, char* file, long line);
 #define _ogg_calloc(x,y) _VDBG_malloc(NULL,(x)*(y),__FILE__,__LINE__)
 #define _ogg_realloc(x,y) _VDBG_malloc((x),(y),__FILE__,__LINE__)
 #define _ogg_free(x) _VDBG_free((x),__FILE__,__LINE__)
+
+
+namespace OggVorbis {
+    public class misc {
+        public static void _ogg_free<T>(T obj)
+        {
+            // Free memory used by obj [maybe garbage collector will do this]
+        }
+    }
+}
+
 #endif
 #endif
 

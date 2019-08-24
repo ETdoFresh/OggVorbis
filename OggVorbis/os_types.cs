@@ -13,146 +13,110 @@
  function: Define a consistent set of types on each platform.
 
  ********************************************************************/
-#ifndef _OS_TYPES_H
-#define _OS_TYPES_H
+using System;
+using ogg_int16_t = System.Int16;
+using ogg_uint16_t = System.UInt16;
+using ogg_int32_t = System.Int32;
+using ogg_uint32_t = System.UInt32;
+using ogg_int64_t = System.Int64;
+using ogg_uint64_t = System.UInt64;
+using System.IO;
+using System.Text;
 
-/* make it easy on the folks that want to compile the libs with a
-   different malloc than stdlib */
-#define _ogg_malloc  malloc
-#define _ogg_calloc  calloc
-#define _ogg_realloc realloc
-#define _ogg_free    free
+namespace OggVorbis
+{
+    public class os_types
+    {
+        /* make it easy on the folks that want to compile the libs with a
+           different malloc than stdlib */
+        public static byte[] _ogg_malloc(long size)
+        {
+            return new byte[size];
+        }
 
-#if defined(_WIN32)
+        public static byte[] _ogg_calloc(long size)
+        {
+            return new byte[size];
+        }
 
-#  if defined(__CYGWIN__)
-#    include <stdint.h>
-     typedef int16_t ogg_int16_t;
-     typedef uint16_t ogg_uint16_t;
-     typedef int32_t ogg_int32_t;
-     typedef uint32_t ogg_uint32_t;
-     typedef int64_t ogg_int64_t;
-     typedef uint64_t ogg_uint64_t;
-#  elif defined(__MINGW32__)
-#    include <sys/types.h>
-     typedef short ogg_int16_t;
-     typedef unsigned short ogg_uint16_t;
-     typedef int ogg_int32_t;
-     typedef unsigned int ogg_uint32_t;
-     typedef long long ogg_int64_t;
-     typedef unsigned long long ogg_uint64_t;
-#  elif defined(__MWERKS__)
-     typedef long long ogg_int64_t;
-     typedef unsigned long long ogg_uint64_t;
-     typedef int ogg_int32_t;
-     typedef unsigned int ogg_uint32_t;
-     typedef short ogg_int16_t;
-     typedef unsigned short ogg_uint16_t;
-#  else
-#    if defined(_MSC_VER) && (_MSC_VER >= 1800) /* MSVC 2013 and newer */
-#      include <stdint.h>
-       typedef int16_t ogg_int16_t;
-       typedef uint16_t ogg_uint16_t;
-       typedef int32_t ogg_int32_t;
-       typedef uint32_t ogg_uint32_t;
-       typedef int64_t ogg_int64_t;
-       typedef uint64_t ogg_uint64_t;
-#    else
-       /* MSVC/Borland */
-       typedef __int64 ogg_int64_t;
-       typedef __int32 ogg_int32_t;
-       typedef unsigned __int32 ogg_uint32_t;
-       typedef unsigned __int64 ogg_uint64_t;
-       typedef __int16 ogg_int16_t;
-       typedef unsigned __int16 ogg_uint16_t;
-#    endif
-#  endif
+        public static T[] _ogg_realloc<T>(T[] t, long size)
+        {
+            var realloc = new T[size];
+            Array.Copy(t, realloc, t.Length);
+            return realloc;
+        }
 
-#elif (defined(__APPLE__) && defined(__MACH__)) /* MacOS X Framework build */
+        public static void memmove<T>(T[] array, long destination, long source, long length)
+        {
+            Array.Copy(array, source, array, destination, length);
+        }
 
-#  include <sys/types.h>
-   typedef int16_t ogg_int16_t;
-   typedef uint16_t ogg_uint16_t;
-   typedef int32_t ogg_int32_t;
-   typedef uint32_t ogg_uint32_t;
-   typedef int64_t ogg_int64_t;
-   typedef uint64_t ogg_uint64_t;
+        public static void memset<T>(T[] array, long offset, T value, long length)
+        {
+            for (long i = offset; i < offset + length; i++)
+                array[i] = value;
+        }
 
-#elif defined(__HAIKU__)
+        public static void memset<T>(T[] array, T value, long length) =>
+            memset(array, 0, value, length);
 
-  /* Haiku */
-#  include <sys/types.h>
-   typedef short ogg_int16_t;
-   typedef unsigned short ogg_uint16_t;
-   typedef int ogg_int32_t;
-   typedef unsigned int ogg_uint32_t;
-   typedef long long ogg_int64_t;
-   typedef unsigned long long ogg_uint64_t;
+        public static int fread(byte[] array, long size, long count, Stream stream)
+        {
+            return stream.Read(array, 0, (int)(count * size));
+        }
 
-#elif defined(__BEOS__)
+        public static int memcmp<T>(T[] array1, T[] array2, long length) =>
+            memcmp(array1, array2, 0, length);
 
-   /* Be */
-#  include <inttypes.h>
-   typedef int16_t ogg_int16_t;
-   typedef uint16_t ogg_uint16_t;
-   typedef int32_t ogg_int32_t;
-   typedef uint32_t ogg_uint32_t;
-   typedef int64_t ogg_int64_t;
-   typedef uint64_t ogg_uint64_t;
+        public static int memcmp<T>(T[] array1, T[] array2, long offset, long length)
+        {
+            for (long i = offset; i < offset + length; i++)
+                if (!array1[i - offset].Equals(array2[i]))
+                    return 1;
+            return 0;
+        }
 
-#elif defined (__EMX__)
+        public static int memcmp(byte[] bytes, string s, long length)
+        {
+            var sBytes = Encoding.UTF8.GetBytes(s);
+            return memcmp(bytes, sBytes, length);
+        }
 
-   /* OS/2 GCC */
-   typedef short ogg_int16_t;
-   typedef unsigned short ogg_uint16_t;
-   typedef int ogg_int32_t;
-   typedef unsigned int ogg_uint32_t;
-   typedef long long ogg_int64_t;
-   typedef unsigned long long ogg_uint64_t;
+        public static int memcpy<T>(T[] array1, T[] array2, long length) =>
+            memcpy(array1, array2, 0, length);
 
+        public static int memcpy<T>(T[] array1, T[] array2, long offset, long length)
+        {
+            for (long i = offset; i < offset + length; i++)
+                array1[i - offset] = array2[i];
+            return (int)length;
+        }
 
-#elif defined (DJGPP)
+        public static int memcpy<T>(T[] array1, long offset, T[] array2, long length)
+        {
+            for (long i = offset; i < offset + length; i++)
+                array1[i] = array2[i - offset];
+            return (int)length;
+        }
 
-   /* DJGPP */
-   typedef short ogg_int16_t;
-   typedef int ogg_int32_t;
-   typedef unsigned int ogg_uint32_t;
-   typedef long long ogg_int64_t;
-   typedef unsigned long long ogg_uint64_t;
+        public static int memchr(byte[] bytes, long offset, char c, long length)
+        {
+            for (long i = offset; i < offset + length; i++)
+                if (bytes[i].Equals(Convert.ToByte(c)))
+                    return (int)(i - offset);
+            return -1;
+        }
 
-#elif defined(R5900)
+        public static void fprintf(Stream stream, string format, params object[] args)
+        {
+            var str = string.Format(format, args);
+            var bytes = Encoding.UTF8.GetBytes(str);
+            stream.Write(bytes, 0, bytes.Length);
+        }
 
-   /* PS2 EE */
-   typedef long ogg_int64_t;
-   typedef unsigned long ogg_uint64_t;
-   typedef int ogg_int32_t;
-   typedef unsigned ogg_uint32_t;
-   typedef short ogg_int16_t;
-
-#elif defined(__SYMBIAN32__)
-
-   /* Symbian GCC */
-   typedef signed short ogg_int16_t;
-   typedef unsigned short ogg_uint16_t;
-   typedef signed int ogg_int32_t;
-   typedef unsigned int ogg_uint32_t;
-   typedef long long int ogg_int64_t;
-   typedef unsigned long long int ogg_uint64_t;
-
-#elif defined(__TMS320C6X__)
-
-   /* TI C64x compiler */
-   typedef signed short ogg_int16_t;
-   typedef unsigned short ogg_uint16_t;
-   typedef signed int ogg_int32_t;
-   typedef unsigned int ogg_uint32_t;
-   typedef long long int ogg_int64_t;
-   typedef unsigned long long int ogg_uint64_t;
-
-#else
-
-#  include <ogg/config_types.h>
-
-#endif
-
-#endif  /* _OS_TYPES_H */
+        public static void exit(int i)
+        {
+            Environment.Exit(i);
+        }
+    }
+}
