@@ -96,7 +96,7 @@ namespace OggVorbis
             /* Vorbis supports only short and long blocks, but allows the
                encoder to choose the sizes */
 
-            public long blocksizes[2];
+            public long[] blocksizes/*[2]*/;
 
             /* modes are the primary means of supporting on-the-fly different
                blocksizes, different channel mappings (LR or M/A),
@@ -107,20 +107,20 @@ namespace OggVorbis
             public int maps;
             public int floors;
             public int residues;
-            public int books;
+            public long books;
             public int psys;     /* encode only */
 
-            public vorbis_info_mode* mode_param[64];
-            public int map_type[64];
-            public vorbis_info_mapping* map_param[64];
-            public int floor_type[64];
-            public vorbis_info_floor* floor_param[64];
-            public int residue_type[64];
-            public vorbis_info_residue* residue_param[64];
-            public static_codebook* book_param[256];
-            public codebook* fullbooks;
+            public vorbis_info_mode[] mode_param/*[64]*/;
+            public int[] map_type/*[64]*/;
+            public vorbis_info_mapping[] map_param/*[64]*/;
+            public int[] floor_type/*[64]*/;
+            public vorbis_info_floor[] floor_param/*[64]*/;
+            public int[] residue_type/*[64]*/;
+            public vorbis_info_residue[] residue_param/*[64]*/;
+            public static_codebook[] book_param/*[256]*/;
+            public codebook[] fullbooks;
 
-            public vorbis_info_psy* psy_param[4]; /* encode only */
+            public vorbis_info_psy[] psy_param/*[4]*/; /* encode only */
             public vorbis_info_psy_global psy_g_param;
 
             public bitrate_manager_info bi;

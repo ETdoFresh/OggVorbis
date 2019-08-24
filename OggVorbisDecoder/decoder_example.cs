@@ -17,6 +17,7 @@
  ********************************************************************/
 using System;
 using static OggVorbis.codec;
+using static OggVorbis.info;
 using static OggVorbis.ogg;
 using static OggVorbis.os_types;
 using static OggVorbis.framing;

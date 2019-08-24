@@ -15,6 +15,7 @@
  Ported by: ETdoFresh
 
  ********************************************************************/
+using static OggVorbis.codec_internal;
 using ogg_int64_t = System.Int64;
 
  namespace OggVorbis
@@ -23,8 +24,8 @@ using ogg_int64_t = System.Int64;
     {
         public struct vorbis_info
         {
-            public int version;
-            public int channels;
+            public long version;
+            public long channels;
             public long rate;
 
             /* The below bitrate declarations are *hints*.
@@ -47,7 +48,7 @@ using ogg_int64_t = System.Int64;
             public long bitrate_lower;
             public long bitrate_window;
 
-            public object codec_setup;
+            public codec_setup_info codec_setup;
         }
 
         /* vorbis_dsp_state buffers the current vorbis audio
@@ -140,10 +141,10 @@ using ogg_int64_t = System.Int64;
         {
             /* unlimited user comment fields.  libvorbis writes 'libvorbis'
                whatever vendor is set to in encode */
-            public char[][] user_comments;
-            public int[] comment_lengths;
-            public int comments;
-            public char[] vendor;
+            public byte[][] user_comments;
+            public long[] comment_lengths;
+            public long comments;
+            public byte[] vendor;
 
         }
 

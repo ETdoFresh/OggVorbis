@@ -28,236 +28,209 @@ using static OggVorbis.misc;
 using static OggVorbis.ogg;
 using static OggVorbis.os_types;
 using ogg_uint32_t = System.UInt32;
-
-int ogg_page_version(const ogg_page* og)
-{
-    return ((int)(og->header[4]));
-}
-
-int ogg_page_continued(const ogg_page* og)
-{
-    return ((int)(og->header[5] & 0x01));
-}
-
-int ogg_page_bos(const ogg_page* og)
-{
-    return ((int)(og->header[5] & 0x02));
-}
-
-int ogg_page_eos(const ogg_page* og)
-{
-    return ((int)(og->header[5] & 0x04));
-}
-
-ogg_int64_t ogg_page_granulepos(const ogg_page* og)
-{
-    unsigned char* page = og->header;
-    ogg_uint64_t granulepos = page[13] & (0xff);
-    granulepos = (granulepos << 8) | (page[12] & 0xff);
-    granulepos = (granulepos << 8) | (page[11] & 0xff);
-    granulepos = (granulepos << 8) | (page[10] & 0xff);
-    granulepos = (granulepos << 8) | (page[9] & 0xff);
-    granulepos = (granulepos << 8) | (page[8] & 0xff);
-    granulepos = (granulepos << 8) | (page[7] & 0xff);
-    granulepos = (granulepos << 8) | (page[6] & 0xff);
-    return ((ogg_int64_t)granulepos);
-}
-
-int ogg_page_serialno(const ogg_page* og)
-{
-    return ((int)((ogg_uint32_t)og->header[14]) |
-                ((ogg_uint32_t)og->header[15] << 8) |
-                ((ogg_uint32_t)og->header[16] << 16) |
-                ((ogg_uint32_t)og->header[17] << 24));
-}
-
-long ogg_page_pageno(const ogg_page* og)
-{
-    return ((long)((ogg_uint32_t)og->header[18]) |
-                 ((ogg_uint32_t)og->header[19] << 8) |
-                 ((ogg_uint32_t)og->header[20] << 16) |
-                 ((ogg_uint32_t)og->header[21] << 24));
-}
-
-
-
-/* returns the number of packets that are completed on this page (if
-   the leading packet is begun on a previous page, but ends on this
-   page, it's counted */
-
-/* NOTE:
-   If a page consists of a packet begun on a previous page, and a new
-   packet begun (but not completed) on this page, the return will be:
-     ogg_page_packets(page)   ==1,
-     ogg_page_continued(page) !=0
-
-   If a page happens to be a single packet that was begun on a
-   previous page, and spans to the next page (in the case of a three or
-   more page packet), the return will be:
-     ogg_page_packets(page)   ==0,
-     ogg_page_continued(page) !=0
-*/
-
-int ogg_page_packets(const ogg_page* og)
-{
-    int i, n = og->header[26], count = 0;
-    for (i = 0; i < n; i++)
-        if (og->header[27 + i] < 255) count++;
-    return (count);
-}
-
-
-#if 0
-/* helper to initialize lookup for direct-table CRC (illustrative; we
-   use the static init in crctable.h) */
-
-static void _ogg_crc_init(){
-  int i, j;
-  ogg_uint32_t polynomial, crc;
-  polynomial = 0x04c11db7; /* The same as the ethernet generator
-                              polynomial, although we use an
-                              unreflected alg and an init/final
-                              of 0, not 0xffffffff */
-  for (i = 0; i <= 0xFF; i++){
-    crc = i << 24;
-
-    for (j = 0; j < 8; j++)
-      crc = (crc << 1) ^ (crc & (1 << 31) ? polynomial : 0);
-
-    crc_lookup[0][i] = crc;
-  }
-
-  for (i = 0; i <= 0xFF; i++)
-    for (j = 1; j < 8; j++)
-      crc_lookup[j][i] = crc_lookup[0][(crc_lookup[j - 1][i] >> 24) & 0xFF] ^ (crc_lookup[j - 1][i] << 8);
-}
-#endif
-
-#include "crctable.h"
-
-/* init the encode/decode logical stream state */
-
-int ogg_stream_init(ogg_stream_state* os, int serialno)
-{
-    if (os)
-    {
-        memset(os, 0, sizeof(*os));
-        os->body_storage = 16 * 1024;
-        os->lacing_storage = 1024;
-
-        os->body_data = _ogg_malloc(os->body_storage * sizeof(*os->body_data));
-        os->lacing_vals = _ogg_malloc(os->lacing_storage * sizeof(*os->lacing_vals));
-        os->granule_vals = _ogg_malloc(os->lacing_storage * sizeof(*os->granule_vals));
-
-        if (!os->body_data || !os->lacing_vals || !os->granule_vals)
-        {
-            ogg_stream_clear(os);
-            return -1;
-        }
-
-        os->serialno = serialno;
-
-        return (0);
-    }
-    return (-1);
-}
-
-/* async/delayed error detection for the ogg_stream_state */
-int ogg_stream_check(ogg_stream_state* os)
-{
-    if (!os || !os->body_data) return -1;
-    return 0;
-}
-
-/* _clear does not free os, only the non-flat storage within */
-int ogg_stream_clear(ogg_stream_state* os)
-{
-    if (os)
-    {
-        if (os->body_data) _ogg_free(os->body_data);
-        if (os->lacing_vals) _ogg_free(os->lacing_vals);
-        if (os->granule_vals) _ogg_free(os->granule_vals);
-
-        memset(os, 0, sizeof(*os));
-    }
-    return (0);
-}
-
-int ogg_stream_destroy(ogg_stream_state* os)
-{
-    if (os)
-    {
-        ogg_stream_clear(os);
-        _ogg_free(os);
-    }
-    return (0);
-}
-
-/* Helpers for ogg_stream_encode; this keeps the structure and
-   what's happening fairly clear */
-
-static int _os_body_expand(ogg_stream_state* os, long needed)
-{
-    if (os->body_storage - needed <= os->body_fill)
-    {
-        long body_storage;
-        void* ret;
-        if (os->body_storage > LONG_MAX - needed)
-        {
-            ogg_stream_clear(os);
-            return -1;
-        }
-        body_storage = os->body_storage + needed;
-        if (body_storage < LONG_MAX - 1024) body_storage += 1024;
-        ret = _ogg_realloc(os->body_data, body_storage * sizeof(*os->body_data));
-        if (!ret)
-        {
-            ogg_stream_clear(os);
-            return -1;
-        }
-        os->body_storage = body_storage;
-        os->body_data = ret;
-    }
-    return 0;
-}
-
-static int _os_lacing_expand(ogg_stream_state* os, long needed)
-{
-    if (os->lacing_storage - needed <= os->lacing_fill)
-    {
-        long lacing_storage;
-        void* ret;
-        if (os->lacing_storage > LONG_MAX - needed)
-        {
-            ogg_stream_clear(os);
-            return -1;
-        }
-        lacing_storage = os->lacing_storage + needed;
-        if (lacing_storage < LONG_MAX - 32) lacing_storage += 32;
-        ret = _ogg_realloc(os->lacing_vals, lacing_storage * sizeof(*os->lacing_vals));
-        if (!ret)
-        {
-            ogg_stream_clear(os);
-            return -1;
-        }
-        os->lacing_vals = ret;
-        ret = _ogg_realloc(os->granule_vals, lacing_storage *
-                         sizeof(*os->granule_vals));
-        if (!ret)
-        {
-            ogg_stream_clear(os);
-            return -1;
-        }
-        os->granule_vals = ret;
-        os->lacing_storage = lacing_storage;
-    }
-    return 0;
-}
+using ogg_int64_t = System.Int64;
+using ogg_uint64_t = System.UInt64;
 
 namespace OggVorbis
 {
     public partial class framing
     {
+        public const long LONG_MAX = long.MaxValue;
+
+        public static int ogg_page_version(ogg_page og)
+        {
+            return ((int)(og.header[4]));
+        }
+
+        public static int ogg_page_continued(ogg_page og)
+        {
+            return ((int)(og.header[5] & 0x01));
+        }
+
+        public static int ogg_page_bos(ogg_page og)
+        {
+            return ((int)(og.header[5] & 0x02));
+        }
+
+        public static int ogg_page_eos(ogg_page og)
+        {
+            return ((int)(og.header[5] & 0x04));
+        }
+
+        public static ogg_int64_t ogg_page_granulepos(ogg_page og)
+        {
+            byte[] page = og.header;
+            ogg_uint64_t granulepos = (ogg_uint64_t)page[13] & (0xff);
+            granulepos = (granulepos << 8) | ((ogg_uint64_t)page[12] & 0xff);
+            granulepos = (granulepos << 8) | ((ogg_uint64_t)page[11] & 0xff);
+            granulepos = (granulepos << 8) | ((ogg_uint64_t)page[10] & 0xff);
+            granulepos = (granulepos << 8) | ((ogg_uint64_t)page[9] & 0xff);
+            granulepos = (granulepos << 8) | ((ogg_uint64_t)page[8] & 0xff);
+            granulepos = (granulepos << 8) | ((ogg_uint64_t)page[7] & 0xff);
+            granulepos = (granulepos << 8) | ((ogg_uint64_t)page[6] & 0xff);
+            return (ogg_int64_t)granulepos;
+        }
+
+        public static int ogg_page_serialno(ogg_page og)
+        {
+            return (int)(og.header[14]) |
+                        (og.header[15] << 8) |
+                        (og.header[16] << 16) |
+                        (og.header[17] << 24);
+        }
+
+        public static long ogg_page_pageno(ogg_page og)
+        {
+            return ((long)((ogg_uint32_t)og.header[18]) |
+                         ((ogg_uint32_t)og.header[19] << 8) |
+                         ((ogg_uint32_t)og.header[20] << 16) |
+                         ((ogg_uint32_t)og.header[21] << 24));
+        }
+
+
+
+        /* returns the number of packets that are completed on this page (if
+           the leading packet is begun on a previous page, but ends on this
+           page, it's counted */
+
+        /* NOTE:
+           If a page consists of a packet begun on a previous page, and a new
+           packet begun (but not completed) on this page, the return will be:
+             ogg_page_packets(page)   ==1,
+             ogg_page_continued(page) !=0
+
+           If a page happens to be a single packet that was begun on a
+           previous page, and spans to the next page (in the case of a three or
+           more page packet), the return will be:
+             ogg_page_packets(page)   ==0,
+             ogg_page_continued(page) !=0
+        */
+
+        public int ogg_page_packets(ogg_page og)
+        {
+            int i, n = og.header[26], count = 0;
+            for (i = 0; i < n; i++)
+                if (og.header[27 + i] < 255) count++;
+            return (count);
+        }
+
+        /* init the encode/decode logical stream state */
+
+        public static int ogg_stream_init(ogg_stream_state os, int serialno)
+        {
+            //if (os)
+            //{
+            //memset(os, 0, sizeof(*os));
+            os.body_storage = 16 * 1024;
+            os.lacing_storage = 1024;
+
+            os.body_data = _ogg_malloc<byte>(os.body_storage /* * sizeof(*os.body_data)*/);
+            os.lacing_vals = _ogg_malloc<int>(os.lacing_storage /* * sizeof(*os.lacing_vals)*/);
+            os.granule_vals = _ogg_malloc<Int64>(os.lacing_storage /* * sizeof(*os.granule_vals)*/);
+
+            if (os.body_data == null || os.lacing_vals == null || os.granule_vals == null)
+            {
+                ogg_stream_clear(os);
+                return -1;
+            }
+
+            os.serialno = serialno;
+
+            return (0);
+            //}
+            //return (-1);
+        }
+
+        /* async/delayed error detection for the ogg_stream_state */
+        public static int ogg_stream_check(ogg_stream_state os)
+        {
+            if (/*!os || */os.body_data == null) return -1;
+            return 0;
+        }
+
+        /* _clear does not free os, only the non-flat storage within */
+        public static int ogg_stream_clear(ogg_stream_state os)
+        {
+            //if (os)
+            //{
+                if (os.body_data != null) _ogg_free(os.body_data);
+                if (os.lacing_vals != null) _ogg_free(os.lacing_vals);
+                if (os.granule_vals != null) _ogg_free(os.granule_vals);
+
+                //memset(os, 0, sizeof(*os));
+            //}
+            return (0);
+        }
+
+        public int ogg_stream_destroy(ogg_stream_state os)
+        {
+            //if (os)
+            //{
+                ogg_stream_clear(os);
+                _ogg_free(os);
+            //}
+            return (0);
+        }
+
+        /* Helpers for ogg_stream_encode; this keeps the structure and
+           what's happening fairly clear */
+
+        public static int _os_body_expand(ogg_stream_state os, long needed)
+        {
+            if (os.body_storage - needed <= os.body_fill)
+            {
+                long body_storage;
+                byte[] ret;
+                if (os.body_storage > LONG_MAX - needed)
+                {
+                    ogg_stream_clear(os);
+                    return -1;
+                }
+                body_storage = os.body_storage + needed;
+                if (body_storage < LONG_MAX - 1024) body_storage += 1024;
+                ret = _ogg_realloc(os.body_data, body_storage /* * sizeof(*os.body_data) */);
+                if (ret == null || ret.Length == 0)
+                {
+                    ogg_stream_clear(os);
+                    return -1;
+                }
+                os.body_storage = body_storage;
+                os.body_data = ret;
+            }
+            return 0;
+        }
+
+        public static int _os_lacing_expand(ogg_stream_state os, long needed)
+        {
+            if (os.lacing_storage - needed <= os.lacing_fill)
+            {
+                long lacing_storage;
+                int[] ret;
+                if (os.lacing_storage > LONG_MAX - needed)
+                {
+                    ogg_stream_clear(os);
+                    return -1;
+                }
+                lacing_storage = os.lacing_storage + needed;
+                if (lacing_storage < LONG_MAX - 32) lacing_storage += 32;
+                ret = _ogg_realloc(os.lacing_vals, lacing_storage /* * sizeof(*os.lacing_vals)*/);
+                if (ret == null || ret.Length == 0)
+                {
+                    ogg_stream_clear(os);
+                    return -1;
+                }
+                os.lacing_vals = ret;
+                long[] ret2 = _ogg_realloc(os.granule_vals, lacing_storage /* * sizeof(*os.granule_vals)*/);
+                if (ret2 == null || ret2.Length == 0)
+                {
+                    ogg_stream_clear(os);
+                    return -1;
+                }
+                os.granule_vals = ret2;
+                os.lacing_storage = lacing_storage;
+            }
+            return 0;
+        }
 
         /* checksum the page */
         /* Direct table CRC; note that this will be faster in the future if we
@@ -330,17 +303,17 @@ int ogg_stream_iovecin(ogg_stream_state* os, ogg_iovec_t* iov, int count,
     }
     lacing_vals = bytes / 255 + 1;
 
-    if (os->body_returned)
+    if (os.body_returned)
     {
         /* advance packet data according to the body_returned pointer. We
            had to keep it around to return a pointer into the buffer last
            call */
 
-        os->body_fill -= os->body_returned;
-        if (os->body_fill)
-            memmove(os->body_data, os->body_data + os->body_returned,
-                    os->body_fill);
-        os->body_returned = 0;
+        os.body_fill -= os.body_returned;
+        if (os.body_fill)
+            memmove(os.body_data, os.body_data + os.body_returned,
+                    os.body_fill);
+        os.body_returned = 0;
     }
 
     /* make sure we have the buffer storage */
@@ -712,7 +685,7 @@ namespace OggVorbis
 
         */
 
-            // TODO: I Think I screwed up the memory pointers somewhere on this -ETdoFresh
+        // TODO: I Think I screwed up the memory pointers somewhere on this -ETdoFresh
         public static long ogg_sync_pageseek(ogg_sync_state oy, ogg_page og)
         {
             byte[] page = oy.data.Skip(oy.returned).ToArray();
@@ -850,11 +823,12 @@ namespace OggVorbis
         /* add the incoming page to the stream state; we decompose the page
            into packet segments here as well. */
 
-        int ogg_stream_pagein(ogg_stream_state* os, ogg_page* og)
+        public static int ogg_stream_pagein(ogg_stream_state os, ogg_page og)
         {
-            unsigned char* header = og->header;
-            unsigned char* body = og->body;
-            long bodysize = og->body_len;
+            byte[] header = og.header;
+            byte[] body = og.body;
+            long bodyI = 0;
+            long bodysize = og.body_len;
             int segptr = 0;
 
             int version = ogg_page_version(og);
@@ -866,75 +840,76 @@ namespace OggVorbis
             long pageno = ogg_page_pageno(og);
             int segments = header[26];
 
-            if (ogg_stream_check(os)) return -1;
+            if (ogg_stream_check(os) != 0) return -1;
 
             /* clean up 'returned data' */
             {
-                long lr = os->lacing_returned;
-                long br = os->body_returned;
+                long lr = os.lacing_returned;
+                long br = os.body_returned;
 
                 /* body data */
-                if (br)
+                if (br != 0)
                 {
-                    os->body_fill -= br;
-                    if (os->body_fill)
-                        memmove(os->body_data, os->body_data + br, os->body_fill);
-                    os->body_returned = 0;
+                    os.body_fill -= br;
+                    if (os.body_fill != 0)
+                        memmove(os.body_data, 0, br, os.body_fill);
+                        //memmove(os.body_data, os.body_data + br, os.body_fill);
+                    os.body_returned = 0;
                 }
 
-                if (lr)
+                if (lr != 0)
                 {
                     /* segment table */
-                    if (os->lacing_fill - lr)
+                    if ((os.lacing_fill - lr) != 0)
                     {
-                        memmove(os->lacing_vals, os->lacing_vals + lr,
-                                (os->lacing_fill - lr) * sizeof(*os->lacing_vals));
-                        memmove(os->granule_vals, os->granule_vals + lr,
-                                (os->lacing_fill - lr) * sizeof(*os->granule_vals));
+                        memmove(os.lacing_vals, 0, lr, (os.lacing_fill - lr));
+                        memmove(os.granule_vals, 0, lr, (os.lacing_fill - lr));
+                        //memmove(os.lacing_vals, os.lacing_vals + lr, (os.lacing_fill - lr) * sizeof(*os.lacing_vals));
+                        //memmove(os.granule_vals, os.granule_vals + lr, (os.lacing_fill - lr) * sizeof(*os.granule_vals));
                     }
-                    os->lacing_fill -= lr;
-                    os->lacing_packet -= lr;
-                    os->lacing_returned = 0;
+                    os.lacing_fill -= lr;
+                    os.lacing_packet -= lr;
+                    os.lacing_returned = 0;
                 }
             }
 
             /* check the serial number */
-            if (serialno != os->serialno) return (-1);
+            if (serialno != os.serialno) return (-1);
             if (version > 0) return (-1);
 
-            if (_os_lacing_expand(os, segments + 1)) return -1;
+            if (_os_lacing_expand(os, segments + 1) != 0) return -1;
 
             /* are we in sequence? */
-            if (pageno != os->pageno)
+            if (pageno != os.pageno)
             {
-                int i;
+                long i;
 
                 /* unroll previous partial packet (if any) */
-                for (i = os->lacing_packet; i < os->lacing_fill; i++)
-                    os->body_fill -= os->lacing_vals[i] & 0xff;
-                os->lacing_fill = os->lacing_packet;
+                for (i = os.lacing_packet; i < os.lacing_fill; i++)
+                    os.body_fill -= os.lacing_vals[i] & 0xff;
+                os.lacing_fill = os.lacing_packet;
 
                 /* make a note of dropped data in segment table */
-                if (os->pageno != -1)
+                if (os.pageno != -1)
                 {
-                    os->lacing_vals[os->lacing_fill++] = 0x400;
-                    os->lacing_packet++;
+                    os.lacing_vals[os.lacing_fill++] = 0x400;
+                    os.lacing_packet++;
                 }
             }
 
             /* are we a 'continued packet' page?  If so, we may need to skip
                some segments */
-            if (continued)
+            if (continued != 0)
             {
-                if (os->lacing_fill < 1 ||
-                   (os->lacing_vals[os->lacing_fill - 1] & 0xff) < 255 ||
-                   os->lacing_vals[os->lacing_fill - 1] == 0x400)
+                if (os.lacing_fill < 1 ||
+                   (os.lacing_vals[os.lacing_fill - 1] & 0xff) < 255 ||
+                   os.lacing_vals[os.lacing_fill - 1] == 0x400)
                 {
                     bos = 0;
                     for (; segptr < segments; segptr++)
                     {
                         int val = header[27 + segptr];
-                        body += val;
+                        bodyI += val;
                         bodysize -= val;
                         if (val < 255)
                         {
@@ -945,51 +920,52 @@ namespace OggVorbis
                 }
             }
 
-            if (bodysize)
+            if (bodysize != 0)
             {
-                if (_os_body_expand(os, bodysize)) return -1;
-                memcpy(os->body_data + os->body_fill, body, bodysize);
-                os->body_fill += bodysize;
+                if (_os_body_expand(os, bodysize) != 0) return -1;
+                memcpy(os.body_data, os.body_fill, body, bodyI, bodysize);
+                //memcpy(os.body_data + os.body_fill, body, bodysize);
+                os.body_fill += bodysize;
             }
 
             {
-                int saved = -1;
+                long saved = -1;
                 while (segptr < segments)
                 {
                     int val = header[27 + segptr];
-                    os->lacing_vals[os->lacing_fill] = val;
-                    os->granule_vals[os->lacing_fill] = -1;
+                    os.lacing_vals[os.lacing_fill] = val;
+                    os.granule_vals[os.lacing_fill] = -1;
 
-                    if (bos)
+                    if (bos != 0)
                     {
-                        os->lacing_vals[os->lacing_fill] |= 0x100;
+                        os.lacing_vals[os.lacing_fill] |= 0x100;
                         bos = 0;
                     }
 
-                    if (val < 255) saved = os->lacing_fill;
+                    if (val < 255) saved = os.lacing_fill;
 
-                    os->lacing_fill++;
+                    os.lacing_fill++;
                     segptr++;
 
-                    if (val < 255) os->lacing_packet = os->lacing_fill;
+                    if (val < 255) os.lacing_packet = os.lacing_fill;
                 }
 
                 /* set the granulepos on the last granuleval of the last full packet */
                 if (saved != -1)
                 {
-                    os->granule_vals[saved] = granulepos;
+                    os.granule_vals[saved] = granulepos;
                 }
 
             }
 
-            if (eos)
+            if (eos != 0)
             {
-                os->e_o_s = 1;
-                if (os->lacing_fill > 0)
-                    os->lacing_vals[os->lacing_fill - 1] |= 0x200;
+                os.e_o_s = 1;
+                if (os.lacing_fill > 0)
+                    os.lacing_vals[os.lacing_fill - 1] |= 0x200;
             }
 
-            os->pageno = pageno + 1;
+            os.pageno = pageno + 1;
 
             return (0);
         }
@@ -999,11 +975,11 @@ namespace OggVorbis
         {
             if (ogg_sync_check(oy)) return -1;
 
-            oy->fill = 0;
-            oy->returned = 0;
-            oy->unsynced = 0;
-            oy->headerbytes = 0;
-            oy->bodybytes = 0;
+            oy.fill = 0;
+            oy.returned = 0;
+            oy.unsynced = 0;
+            oy.headerbytes = 0;
+            oy.bodybytes = 0;
             return (0);
         }
 
@@ -1037,87 +1013,84 @@ namespace OggVorbis
             return (0);
         }
 
-        static int _packetout(ogg_stream_state* os, ogg_packet* op, int adv)
+        public static int _packetout(ogg_stream_state os, ogg_packet op, int adv)
         {
 
             /* The last part of decode. We have the stream broken into packet
                segments.  Now we need to group them into packets (or return the
                out of sync markers) */
 
-            int ptr = os->lacing_returned;
+            long ptr = os.lacing_returned;
 
-            if (os->lacing_packet <= ptr) return (0);
+            if (os.lacing_packet <= ptr) return (0);
 
-            if (os->lacing_vals[ptr] & 0x400)
+            if ((os.lacing_vals[ptr] & 0x400) != 0)
             {
                 /* we need to tell the codec there's a gap; it might need to
                    handle previous packet dependencies. */
-                os->lacing_returned++;
-                os->packetno++;
+                os.lacing_returned++;
+                os.packetno++;
                 return (-1);
             }
 
-            if (!op && !adv) return (1); /* just using peek as an inexpensive way
+            /*if (!op && adv == 0) return (1); /* just using peek as an inexpensive way
                                to ask if there's a whole packet
                                waiting */
 
             /* Gather the whole packet. We'll have no holes or a partial packet */
             {
-                int size = os->lacing_vals[ptr] & 0xff;
+                int size = os.lacing_vals[ptr] & 0xff;
                 long bytes = size;
-                int eos = os->lacing_vals[ptr] & 0x200; /* last packet of the stream? */
-                int bos = os->lacing_vals[ptr] & 0x100; /* first packet of the stream? */
+                int eos = os.lacing_vals[ptr] & 0x200; /* last packet of the stream? */
+                int bos = os.lacing_vals[ptr] & 0x100; /* first packet of the stream? */
 
                 while (size == 255)
                 {
-                    int val = os->lacing_vals[++ptr];
+                    int val = os.lacing_vals[++ptr];
                     size = val & 0xff;
-                    if (val & 0x200) eos = 0x200;
+                    if ((val & 0x200) != 0) eos = 0x200;
                     bytes += size;
                 }
 
-                if (op)
-                {
-                    op->e_o_s = eos;
-                    op->b_o_s = bos;
-                    op->packet = os->body_data + os->body_returned;
-                    op->packetno = os->packetno;
-                    op->granulepos = os->granule_vals[ptr];
-                    op->bytes = bytes;
-                }
+                //if (op)
+                //{
+                    op.e_o_s = eos;
+                    op.b_o_s = bos;
+                    op.packet = os.body_data.Skip((int)os.body_returned).ToArray();
+                    op.packetno = os.packetno;
+                    op.granulepos = os.granule_vals[ptr];
+                    op.bytes = bytes;
+                //}
 
-                if (adv)
+                if (adv != 0)
                 {
-                    os->body_returned += bytes;
-                    os->lacing_returned = ptr + 1;
-                    os->packetno++;
+                    os.body_returned += bytes;
+                    os.lacing_returned = ptr + 1;
+                    os.packetno++;
                 }
             }
             return (1);
         }
 
-        int ogg_stream_packetout(ogg_stream_state* os, ogg_packet* op)
+        public static int ogg_stream_packetout(ogg_stream_state os, ogg_packet op)
         {
-            if (ogg_stream_check(os)) return 0;
+            if (ogg_stream_check(os) != 0) return 0;
             return _packetout(os, op, 1);
         }
 
-        int ogg_stream_packetpeek(ogg_stream_state* os, ogg_packet* op)
+        int ogg_stream_packetpeek(ogg_stream_state os, ogg_packet op)
         {
-            if (ogg_stream_check(os)) return 0;
+            if (ogg_stream_check(os) != 0) return 0;
             return _packetout(os, op, 0);
         }
 
-        void ogg_packet_clear(ogg_packet* op)
+        void ogg_packet_clear(ogg_packet op)
         {
-            _ogg_free(op->packet);
-            memset(op, 0, sizeof(*op));
+            _ogg_free(op.packet);
+            //memset(op, 0, sizeof(*op));
         }
     }
 }
-
-#ifdef _V_SELFTEST
-#include <stdio.h>
 
 ogg_stream_state os_en, os_de;
 ogg_sync_state oy;

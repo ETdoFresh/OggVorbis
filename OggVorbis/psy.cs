@@ -15,62 +15,55 @@
  Ported by: ETdoFresh
 
  ********************************************************************/
-
-#include <stdlib.h>
-#include <math.h>
-#include <string.h>
-#include "vorbis/codec.h"
-#include "codec_internal.h"
-
-#include "masking.h"
-#include "psy.h"
-#include "os.h"
-#include "lpc.h"
-#include "smallft.h"
-#include "scales.h"
-#include "misc.h"
-
-#define NEGINF -9999.f
-static const double stereo_threshholds[] = { 0.0, .5, 1.0, 1.5, 2.5, 4.5, 8.5, 16.5, 9e10 };
-static const double stereo_threshholds_limited[] = { 0.0, .5, 1.0, 1.5, 2.0, 2.5, 4.5, 8.5, 9e10 };
-
-vorbis_look_psy_global* _vp_global_look(vorbis_info* vi)
-{
-    codec_setup_info* ci = vi->codec_setup;
-    vorbis_info_psy_global* gi = &ci->psy_g_param;
-    vorbis_look_psy_global* look = _ogg_calloc(1, sizeof(*look));
-
-    look->channels = vi->channels;
-
-    look->ampmax = -9999.;
-    look->gi = gi;
-    return (look);
-}
-
-void _vp_global_free(vorbis_look_psy_global* look)
-{
-    if (look)
+using static OggVorbis.misc;
+ 
+ namespace OggVorbis {
+    public partial class psy
     {
-        memset(look, 0, sizeof(*look));
-        _ogg_free(look);
-    }
-}
+        public const float NEGINF = -9999f;
 
-void _vi_gpsy_free(vorbis_info_psy_global* i)
-{
-    if (i)
-    {
-        memset(i, 0, sizeof(*i));
-        _ogg_free(i);
-    }
-}
+        public static readonly double[] stereo_threshholds = { 0.0, .5, 1.0, 1.5, 2.5, 4.5, 8.5, 16.5, 9e10 };
+        public static readonly double[] stereo_threshholds_limited = { 0.0, .5, 1.0, 1.5, 2.0, 2.5, 4.5, 8.5, 9e10 };
 
-void _vi_psy_free(vorbis_info_psy* i)
-{
-    if (i)
-    {
-        memset(i, 0, sizeof(*i));
-        _ogg_free(i);
+        public vorbis_look_psy_global _vp_global_look(vorbis_info vi)
+        {
+            codec_setup_info ci = vi->codec_setup;
+            vorbis_info_psy_global gi = &ci->psy_g_param;
+            vorbis_look_psy_global look = _ogg_calloc(1, sizeof(*look));
+
+            look->channels = vi->channels;
+
+            look->ampmax = -9999.;
+            look->gi = gi;
+            return (look);
+        }
+
+        void _vp_global_free(vorbis_look_psy_global look)
+        {
+            if (look)
+            {
+                memset(look, 0, sizeof(*look));
+                _ogg_free(look);
+            }
+        }
+
+        void _vi_gpsy_free(vorbis_info_psy_global i)
+        {
+            if (i)
+            {
+                memset(i, 0, sizeof(*i));
+                _ogg_free(i);
+            }
+        }
+
+        public static void _vi_psy_free(vorbis_info_psy i)
+        {
+            //if (i)
+            //{
+                //memset(i, 0, sizeof(*i));
+                _ogg_free(i);
+            //}
+        }
     }
 }
 

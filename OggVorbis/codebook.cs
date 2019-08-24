@@ -15,6 +15,7 @@
  Ported by: ETdoFresh
 
  ********************************************************************/
+using ogg_uint32_t = System.Int32;
 
 /* packs the given codebook into the bitstream **************************/
 
@@ -533,7 +534,7 @@ public struct static_codebook
 {
     public long dim;           /* codebook dimensions (elements per vector) */
     public long entries;       /* codebook entries */
-    public char* lengthlist;    /* codeword lengths in bits */
+    public byte[] lengthlist;    /* codeword lengths in bits */
 
     /* mapping ***************************************************************/
     public int maptype;       /* 0=none
@@ -546,7 +547,7 @@ public struct static_codebook
     public int q_quant;     /* bits: 0 < quant <= 16 */
     public int q_sequencep; /* bitflag */
 
-    public long* quantlist;  /* map == 1: (int)(entries^(1/dim)) element column map
+    public long[] quantlist;  /* map == 1: (int)(entries^(1/dim)) element column map
                                map == 2: list of dim*entries quantized entry vals
                              */
     public int allocedp;
@@ -557,17 +558,17 @@ public struct codebook
     public long dim;           /* codebook dimensions (elements per vector) */
     public long entries;       /* codebook entries */
     public long used_entries;  /* populated codebook entries */
-    public const static_codebook* c;
+    public static_codebook c;
 
     /* for encode, the below are entry-ordered, fully populated */
     /* for decode, the below are ordered by bitreversed codeword and only
        used entries are populated */
-    public float* valuelist;  /* list of dim*entries actual entry values */
-    public ogg_uint32_t* codelist;   /* list of bitstream codewords for each entry */
+    public float[] valuelist;  /* list of dim*entries actual entry values */
+    public ogg_uint32_t[] codelist;   /* list of bitstream codewords for each entry */
 
-    public int* dec_index;  /* only used if sparseness collapsed */
-    public char* dec_codelengths;
-    public ogg_uint32_t* dec_firsttable;
+    public int[] dec_index;  /* only used if sparseness collapsed */
+    public byte[] dec_codelengths;
+    public ogg_uint32_t[] dec_firsttable;
     public int dec_firsttablen;
     public int dec_maxlength;
 

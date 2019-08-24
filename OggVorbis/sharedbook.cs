@@ -15,17 +15,7 @@
  Ported by: ETdoFresh
 
  ********************************************************************/
-
-#include <stdlib.h>
-#include <limits.h>
-#include <math.h>
-#include <string.h>
-#include <ogg/ogg.h>
-#include "os.h"
-#include "misc.h"
-#include "vorbis/codec.h"
-#include "codebook.h"
-#include "scales.h"
+using static OggVorbis.misc;
 
 /**** pack/unpack helpers ******************************************/
 
@@ -304,30 +294,33 @@ float* _book_unquantize(const static_codebook* b, int n, int* sparsemap)
     }
     return (NULL);
 }
+namespace OggVorbis { public partial class sharedbook {
+        public static void vorbis_staticbook_destroy(static_codebook b)
+        {
+            if (b.allocedp != 0)
+            {
+                if (b.quantlist != null) _ogg_free(b.quantlist);
+                if (b.lengthlist != null) _ogg_free(b.lengthlist);
+                //memset(b, 0, sizeof(*b));
+                _ogg_free(b);
+            } /* otherwise, it is in static memory */
+        }
 
-void vorbis_staticbook_destroy(static_codebook* b)
-{
-    if (b->allocedp)
-    {
-        if (b->quantlist) _ogg_free(b->quantlist);
-        if (b->lengthlist) _ogg_free(b->lengthlist);
-        memset(b, 0, sizeof(*b));
-        _ogg_free(b);
-    } /* otherwise, it is in static memory */
-}
 
-void vorbis_book_clear(codebook* b)
-{
-    /* static book is not cleared; we're likely called on the lookup and
-       the static codebook belongs to the info struct */
-    if (b->valuelist) _ogg_free(b->valuelist);
-    if (b->codelist) _ogg_free(b->codelist);
+        public static void vorbis_book_clear(codebook b)
+        {
+            /* static book is not cleared; we're likely called on the lookup and
+               the static codebook belongs to the info struct */
+            if (b.valuelist != null) _ogg_free(b.valuelist);
+            if (b.codelist != null) _ogg_free(b.codelist);
 
-    if (b->dec_index) _ogg_free(b->dec_index);
-    if (b->dec_codelengths) _ogg_free(b->dec_codelengths);
-    if (b->dec_firsttable) _ogg_free(b->dec_firsttable);
+            if (b.dec_index != null) _ogg_free(b.dec_index);
+            if (b.dec_codelengths != null) _ogg_free(b.dec_codelengths);
+            if (b.dec_firsttable != null) _ogg_free(b.dec_firsttable);
 
-    memset(b, 0, sizeof(*b));
+            //memset(b, 0, sizeof(*b));
+        }
+    }
 }
 
 int vorbis_book_init_encode(codebook* c,const static_codebook* s)

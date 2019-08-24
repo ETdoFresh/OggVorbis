@@ -32,7 +32,7 @@ namespace OggVorbis
             public int endbit;
 
             public byte[] buffer;
-            public byte[] ptr;
+            public long bufferI;
             public long storage;
         }
 

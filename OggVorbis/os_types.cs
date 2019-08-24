@@ -29,15 +29,17 @@ namespace OggVorbis
     {
         /* make it easy on the folks that want to compile the libs with a
            different malloc than stdlib */
-        public static byte[] _ogg_malloc(long size)
+        public static T[] _ogg_malloc<T>(long size)
         {
-            return new byte[size];
+            return new T[size];
         }
 
         public static byte[] _ogg_calloc(long size)
         {
             return new byte[size];
         }
+
+        public static byte[] _ogg_calloc(long num, long size) => _ogg_calloc(num * size);
 
         public static T[] _ogg_realloc<T>(T[] t, long size)
         {
@@ -89,6 +91,13 @@ namespace OggVorbis
         {
             for (long i = offset; i < offset + length; i++)
                 array1[i - offset] = array2[i];
+            return (int)length;
+        }
+
+        public static int memcpy<T>(T[] array1, long offset1, T[] array2, long offset2, long length)
+        {
+            for (long i = 0; i < length; i++)
+                array1[i + offset1] = array2[i + offset2];
             return (int)length;
         }
 
