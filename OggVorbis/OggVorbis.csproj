@@ -48,20 +48,31 @@
   <ItemGroup>
     <Compile Include="alloc_chain.cs" />
     <Compile Include="ArrayPointer.cs" />
+    <Compile Include="bitrate_manager_info.cs" />
+    <Compile Include="codebook.cs" />
     <Compile Include="codec_setup_info.cs" />
     <Compile Include="crctable.cs" />
     <Compile Include="Framing.cs" />
+    <Compile Include="highlevel_encode_setup.cs" />
+    <Compile Include="Info.cs" />
     <Compile Include="oggpack_buffer.cs" />
     <Compile Include="OggStreamState.cs" />
     <Compile Include="OggSyncState.cs" />
     <Compile Include="OggPacket.cs" />
     <Compile Include="OggPage.cs" />
     <Compile Include="OS.cs" />
+    <Compile Include="static_codebook.cs" />
     <Compile Include="VorbisBlock.cs" />
     <Compile Include="VorbisComment.cs" />
     <Compile Include="VorbisDspState.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="VorbisInfo.cs" />
+    <Compile Include="vorbis_info_floor.cs" />
+    <Compile Include="vorbis_info_mapping.cs" />
+    <Compile Include="vorbis_info_mode.cs" />
+    <Compile Include="vorbis_info_psy.cs" />
+    <Compile Include="vorbis_info_psy_global.cs" />
+    <Compile Include="vorbis_info_residue.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

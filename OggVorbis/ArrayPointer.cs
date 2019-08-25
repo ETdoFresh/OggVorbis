@@ -112,7 +112,7 @@ namespace OggVorbis
             return new ArrayPointer { stream = a.stream, pointer = a.pointer + b.pointer };
         }
 
-        public static ArrayPointer operator +(ArrayPointer a, int b)
+        public static ArrayPointer operator +(ArrayPointer a, long b)
         {
             return new ArrayPointer { stream = a.stream, pointer = a.pointer + b };
         }
@@ -184,6 +184,16 @@ namespace OggVorbis
             for (int i = 0; i < size; i++)
                 destination.Write(source[i]);
             destination.pointer = pointer;
+        }
+
+        public static void memcpy(ArrayPointer destination, ArrayPointer source, long size)
+        {
+            var destinationPointer = destination.pointer;
+            var sourcePointer = source.pointer;
+            for (int i = 0; i < size; i++)
+                destination.Write(source.Read());
+            destination.pointer = destinationPointer;
+            source.pointer = sourcePointer;
         }
 
         public static void memset(ArrayPointer destination, byte value, long size)

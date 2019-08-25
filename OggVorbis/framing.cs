@@ -262,14 +262,6 @@ namespace OggVorbis
             return crc;
         }
 
-        public static int ogg_page_serialno(ogg_page og)
-        {
-            return og.header[14] |
-                og.header[15] << 8 |
-                og.header[16] << 16 |
-                og.header[17] << 24;
-        }
-
         /* init the encode/decode logical stream state */
 
         public static int ogg_stream_init(ogg_stream_state os, int serialno)
@@ -307,6 +299,275 @@ namespace OggVorbis
         {
             oy.stream.SetLength(0);
             return (0);
+        }
+
+        /* add the incoming page to the stream state; we decompose the page
+   into packet segments here as well. */
+
+        public static int ogg_stream_pagein(ogg_stream_state os, ogg_page og)
+        {
+            ArrayPointer header = og.header;
+            ArrayPointer body = og.body;
+            long bodysize = og.body_len;
+            int segptr = 0;
+
+            int version = ogg_page_version(og);
+            int continued = ogg_page_continued(og);
+            int bos = ogg_page_bos(og);
+            int eos = ogg_page_eos(og);
+            long granulepos = ogg_page_granulepos(og);
+            int serialno = ogg_page_serialno(og);
+            long pageno = ogg_page_pageno(og);
+            int segments = header[26];
+
+            if (ogg_stream_check(os) != 0) return -1;
+
+            /* clean up 'returned data' */
+            {
+                long lr = os.lacing_returned;
+                long br = os.body_returned;
+
+                /* body data */
+                if (br != 0)
+                {
+                    os.body_fill -= br;
+                    if (os.body_fill != 0)
+                        memmove(os.body_data, os.body_data + br, os.body_fill);
+                    os.body_returned = 0;
+                }
+
+                if (lr != 0)
+                {
+                    /* segment table */
+                    if ((os.lacing_fill - lr) != 0)
+                    {
+                        memmove(os.lacing_vals, /*os.lacing_vals +*/ lr,
+                                (os.lacing_fill - lr) /* * sizeof(*os.lacing_vals)*/);
+                        memmove(os.granule_vals, /*os.granule_vals +*/ lr,
+                                (os.lacing_fill - lr) /* * sizeof(*os.granule_vals)*/);
+                    }
+                    os.lacing_fill -= lr;
+                    os.lacing_packet -= lr;
+                    os.lacing_returned = 0;
+                }
+            }
+
+            /* check the serial number */
+            if (serialno != os.serialno) return (-1);
+            if (version > 0) return (-1);
+
+            if (_os_lacing_expand(os, segments + 1) != 0) return -1;
+
+            /* are we in sequence? */
+            if (pageno != os.pageno)
+            {
+                long i;
+
+                /* unroll previous partial packet (if any) */
+                for (i = os.lacing_packet; i < os.lacing_fill; i++)
+                    os.body_fill -= os.lacing_vals[i] & 0xff;
+                os.lacing_fill = os.lacing_packet;
+
+                /* make a note of dropped data in segment table */
+                if (os.pageno != -1)
+                {
+                    os.lacing_vals[os.lacing_fill++] = 0x400;
+                    os.lacing_packet++;
+                }
+            }
+
+            /* are we a 'continued packet' page?  If so, we may need to skip
+               some segments */
+            if (continued != 0)
+            {
+                if (os.lacing_fill < 1 ||
+                   (os.lacing_vals[os.lacing_fill - 1] & 0xff) < 255 ||
+                   os.lacing_vals[os.lacing_fill - 1] == 0x400)
+                {
+                    bos = 0;
+                    for (; segptr < segments; segptr++)
+                    {
+                        int val = header[27 + segptr];
+                        body += val;
+                        bodysize -= val;
+                        if (val < 255)
+                        {
+                            segptr++;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (bodysize != 0)
+            {
+                if (_os_body_expand(os, bodysize) != 0) return -1;
+                memcpy(os.body_data + os.body_fill, body, bodysize);
+                os.body_fill += bodysize;
+            }
+
+            {
+                long saved = -1;
+                while (segptr < segments)
+                {
+                    int val = header[27 + segptr];
+                    os.lacing_vals[os.lacing_fill] = val;
+                    os.granule_vals[os.lacing_fill] = -1;
+
+                    if (bos != 0)
+                    {
+                        os.lacing_vals[os.lacing_fill] |= 0x100;
+                        bos = 0;
+                    }
+
+                    if (val < 255) saved = os.lacing_fill;
+
+                    os.lacing_fill++;
+                    segptr++;
+
+                    if (val < 255) os.lacing_packet = os.lacing_fill;
+                }
+
+                /* set the granulepos on the last granuleval of the last full packet */
+                if (saved != -1)
+                {
+                    os.granule_vals[saved] = granulepos;
+                }
+
+            }
+
+            if (eos != 0)
+            {
+                os.e_o_s = 1;
+                if (os.lacing_fill > 0)
+                    os.lacing_vals[os.lacing_fill - 1] |= 0x200;
+            }
+
+            os.pageno = pageno + 1;
+
+            return (0);
+        }
+
+        /* A complete description of Ogg framing exists in docs/framing.html */
+
+        public static int ogg_page_version(ogg_page og)
+        {
+            return ((int)(og.header[4]));
+        }
+
+        public static int ogg_page_continued(ogg_page og)
+        {
+            return ((int)(og.header[5] & 0x01));
+        }
+
+        public static int ogg_page_bos(ogg_page og)
+        {
+            return ((int)(og.header[5] & 0x02));
+        }
+
+        public static int ogg_page_eos(ogg_page og)
+        {
+            return ((int)(og.header[5] & 0x04));
+        }
+
+        public static long ogg_page_granulepos(ogg_page og)
+        {
+            ArrayPointer page = og.header;
+            long granulepos = page[13] & (0xff);
+#pragma warning disable CS0675 // Bitwise-or operator used on a sign-extended operand
+            granulepos = (granulepos << 8) | (page[12] & 0xff);
+            granulepos = (granulepos << 8) | (page[11] & 0xff);
+            granulepos = (granulepos << 8) | (page[10] & 0xff);
+            granulepos = (granulepos << 8) | (page[9] & 0xff);
+            granulepos = (granulepos << 8) | (page[8] & 0xff);
+            granulepos = (granulepos << 8) | (page[7] & 0xff);
+            granulepos = (granulepos << 8) | (page[6] & 0xff);
+#pragma warning restore CS0675 // Bitwise-or operator used on a sign-extended operand
+            return ((long)granulepos);
+        }
+
+        public static int ogg_page_serialno(ogg_page og)
+        {
+            return og.header[14] |
+                og.header[15] << 8 |
+                og.header[16] << 16 |
+                og.header[17] << 24;
+        }
+
+        public static long ogg_page_pageno(ogg_page og)
+        {
+            return og.header[18] |
+                og.header[19] << 8 |
+                og.header[20] << 16 |
+                og.header[21] << 24;
+        }
+
+        /* async/delayed error detection for the ogg_stream_state */
+        public static int ogg_stream_check(ogg_stream_state os)
+        {
+            if (os == null || os.body_data == null) return -1;
+            return 0;
+        }
+
+        public static int _os_lacing_expand(ogg_stream_state os, long needed)
+        {
+            if (os.lacing_storage - needed <= os.lacing_fill)
+            {
+                long lacing_storage;
+                object ret;
+                if (os.lacing_storage > long.MaxValue - needed)
+                {
+                    ogg_stream_clear(os);
+                    return -1;
+                }
+                lacing_storage = os.lacing_storage + needed;
+                if (lacing_storage < long.MaxValue - 32) lacing_storage += 32;
+                ret = _ogg_realloc(os.lacing_vals, lacing_storage /* * sizeof(*os.lacing_vals)*/);
+                if (ret == null)
+                {
+                    ogg_stream_clear(os);
+                    return -1;
+                }
+                os.lacing_vals = (int[])ret;
+                ret = _ogg_realloc(os.granule_vals, lacing_storage /* * sizeof(*os.granule_vals)*/);
+                if (ret == null)
+                {
+                    ogg_stream_clear(os);
+                    return -1;
+                }
+                os.granule_vals = (long[])ret;
+                os.lacing_storage = lacing_storage;
+            }
+            return 0;
+        }
+
+        /* Helpers for ogg_stream_encode; this keeps the structure and
+           what's happening fairly clear */
+
+        public static int _os_body_expand(ogg_stream_state os, long needed)
+        {
+            if (os.body_storage - needed <= os.body_fill)
+            {
+                long body_storage;
+                //object ret;
+                if (os.body_storage > long.MaxValue - needed)
+                {
+                    ogg_stream_clear(os);
+                    return -1;
+                }
+                body_storage = os.body_storage + needed;
+                // Uses an expanding array, hence reallocation should not be necessary
+                //if (body_storage < long.MaxValue - 1024) body_storage += 1024;
+                //ret = _ogg_realloc(os.body_data, body_storage /* * sizeof(*os.body_data)*/);
+                //if (ret == null)
+                //{
+                //    ogg_stream_clear(os);
+                //    return -1;
+                //}
+                os.body_storage = body_storage;
+                //os.body_data = ret;
+            }
+            return 0;
         }
     }
 }

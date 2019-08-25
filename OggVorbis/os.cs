@@ -20,5 +20,25 @@ namespace OggVorbis
         {
             System.Environment.Exit(exitCode);
         }
+
+        public static void memmove(int[] array, long sourceIndex, long size)
+        {
+            var temp = new int[size];
+            Array.Copy(array, sourceIndex, temp, 0, size);
+            Array.Copy(temp, array, size);
+        }
+
+        public static void memmove(long[] array, long sourceIndex, long size)
+        {
+            var temp = new int[size];
+            Array.Copy(array, sourceIndex, temp, 0, size);
+            Array.Copy(temp, array, size);
+        }
+
+        public static T[] _ogg_realloc<T>(T[] array, long newSize)
+        {
+            Array.Resize(ref array, (int)newSize);
+            return array;
+        }
     }
 }

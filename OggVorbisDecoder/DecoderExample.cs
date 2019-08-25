@@ -17,6 +17,7 @@
  ********************************************************************/
 using System;
 using static OggVorbis.ArrayPointer;
+using static OggVorbis.Info;
 using static OggVorbis.Framing;
 using static OggVorbis.OS;
 using ogg_int16_t = System.Int16;
@@ -93,27 +94,27 @@ namespace OggVorbis
 
                 else { break; } // TODO: ERASE!! DEBUG LINE!!
 
-                ///* get the serial number and set up the rest of decode. */
-                ///* serialno first; use it to set up a logical stream */
-                //ogg_stream_init(os, ogg_page_serialno(og));
+                /* get the serial number and set up the rest of decode. */
+                /* serialno first; use it to set up a logical stream */
+                ogg_stream_init(os, ogg_page_serialno(og));
 
-                ///* extract the initial header from the first page and verify that the
-                //   ogg bitstream is in fact vorbis data */
+                /* extract the initial header from the first page and verify that the
+                   ogg bitstream is in fact vorbis data */
 
-                ///* i handle the initial header first instead of just having the code
-                //   read all three vorbis headers at once because reading the initial
-                //   header is an easy way to identify a vorbis bitstream and it's
-                //   useful to see that functionality seperated out. */
+                /* i handle the initial header first instead of just having the code
+                   read all three vorbis headers at once because reading the initial
+                   header is an easy way to identify a vorbis bitstream and it's
+                   useful to see that functionality seperated out. */
 
-                //vorbis_info_init(vi);
-                //vorbis_comment_init(vc);
+                vorbis_info_init(vi);
+                vorbis_comment_init(vc);
 
-                //if (ogg_stream_pagein(os, og) < 0)
-                //{
-                //    /* error; stream version mismatch perhaps */
-                //    fprintf(stderr, "error reading first page of ogg bitstream data.\n");
-                //    exit(1);
-                //}
+                if (ogg_stream_pagein(os, og) < 0)
+                {
+                    /* error; stream version mismatch perhaps */
+                    fprintf(stderr, "error reading first page of ogg bitstream data.\n");
+                    exit(1);
+                }
 
                 //if (ogg_stream_packetout(os, og) != 1)
                 //{
