@@ -20,7 +20,7 @@ namespace OggVorbis
     /* ogg_packet is used to encapsulate the data and metadata belonging
        to a single raw Ogg/Vorbis packet *************************************/
 
-    public struct OggPacket
+    public class ogg_packet
     {
         public byte[] packet;
         public long bytes;

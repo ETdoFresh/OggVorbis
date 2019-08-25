@@ -13,16 +13,14 @@
  function: toplevel libogg include
 
  ********************************************************************/
-using System;
 using System.IO;
-using System.Text;
 
 namespace OggVorbis
 {
-    public struct ogg_sync_state
+    public class ogg_sync_state
     {
         public MemoryStream stream;
-        public int data;
+        public ArrayPointer data;
         public int storage;
         public int fill;
         public int returned;

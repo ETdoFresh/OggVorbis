@@ -20,10 +20,10 @@ namespace OggVorbis
     /* vorbis_dsp_state buffers the current vorbis audio
        analysis/synthesis state.  The DSP state belongs to a specific
        logical bitstream ****************************************************/
-    public struct VorbisDspState
+    public class vorbis_dsp_state
     {
         public int analysisp;
-        public VorbisInfo vi;
+        public vorbis_info vi;
 
         public float[][] pcm;
         public float[][] pcmret;

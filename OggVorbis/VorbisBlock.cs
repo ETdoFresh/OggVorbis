@@ -19,7 +19,7 @@ using ogg_int64_t = System.Int64;
 
 namespace OggVorbis
 {
-    public struct VorbisBlock
+    public class vorbis_block
     {
         /* necessary stream state for linking to the framing abstraction */
         public float[][] pcm;       /* this is a pointer into local storage */
@@ -34,7 +34,7 @@ namespace OggVorbis
         public int eofflag;
         public ogg_int64_t granulepos;
         public ogg_int64_t sequence;
-        public VorbisDspState vd; /* For read-only access of configuration */
+        public vorbis_dsp_state vd; /* For read-only access of configuration */
 
         /* local storage to avoid remallocing; it's up to the mapping to
            structure it */

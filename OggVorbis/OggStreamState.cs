@@ -13,23 +13,24 @@
  function: toplevel libogg include
 
  ********************************************************************/
-using ogg_int64_t = System.Int64;
+using System.IO;
 
 namespace OggVorbis
 {
     /* ogg_stream_state contains the current encode/decode state of a logical
        Ogg bitstream **********************************************************/
 
-    public class OggStreamState
+    public class ogg_stream_state
     {
-        public byte[] body_data;           /* bytes from packet bodies */
+        public Stream stream;
+        public ArrayPointer body_data;           /* bytes from packet bodies */
         public long body_storage;          /* storage elements allocated */
         public long body_fill;             /* elements stored; fill mark */
         public long body_returned;         /* elements of fill returned */
 
 
         public int[] lacing_vals;          /* The values that will go to the segment table */
-        public ogg_int64_t[] granule_vals; /* granulepos values for headers. Not compact
+        public long[] granule_vals; /* granulepos values for headers. Not compact
                                          this way, but it is simple coupled to the
                                          lacing fifo */
         public long lacing_storage;
@@ -46,12 +47,12 @@ namespace OggVorbis
                              of a logical bitstream */
         public long serialno;
         public long pageno;
-        public ogg_int64_t packetno;  /* sequence number for decode; the framing
+        public long packetno;  /* sequence number for decode; the framing
                              knows where there's a hole in the data,
                              but we need coupling so that the codec
                              (which is in a separate abstraction
                              layer) also knows about the gap */
-        public ogg_int64_t granulepos;
+        public long granulepos;
 
     }
 }

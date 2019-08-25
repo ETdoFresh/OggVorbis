@@ -20,12 +20,11 @@ namespace OggVorbis
 {
     /* ogg_page is used to encapsulate the data in one Ogg bitstream page *****/
 
-    public struct ogg_page
+    public class ogg_page
     {
-        public MemoryStream stream;
-        public int header;
+        public ArrayPointer header;
         public int header_len;
-        public int body;
+        public ArrayPointer body;
         public int body_len;
     }
 }

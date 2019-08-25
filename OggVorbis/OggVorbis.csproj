@@ -47,6 +47,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="alloc_chain.cs" />
+    <Compile Include="ArrayPointer.cs" />
     <Compile Include="codec_setup_info.cs" />
     <Compile Include="crctable.cs" />
     <Compile Include="Framing.cs" />

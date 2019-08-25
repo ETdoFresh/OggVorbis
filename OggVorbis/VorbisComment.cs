@@ -26,7 +26,7 @@ namespace OggVorbis
 
     /* the comments are not part of vorbis_info so that vorbis_info can be
        static storage */
-    public struct VorbisComment
+    public class vorbis_comment
     {
         /* unlimited user comment fields.  libvorbis writes 'libvorbis'
            whatever vendor is set to in encode */

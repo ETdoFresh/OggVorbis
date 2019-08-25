@@ -17,7 +17,7 @@
  ********************************************************************/
 namespace OggVorbis
 {
-    public struct VorbisInfo
+    public class vorbis_info
     {
         public long version;
         public long channels;

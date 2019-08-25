@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using static OggVorbis.OS;
+using static OggVorbis.ArrayPointer;
 using static OggVorbis.crctable;
 
 namespace OggVorbis
@@ -27,24 +28,25 @@ namespace OggVorbis
            ogg_stream_state. */
 
         /* initialize the struct to a known state */
-        public static int ogg_sync_init(ref ogg_sync_state oy)
+        public static int ogg_sync_init(ogg_sync_state oy)
         {
             oy.storage = -1; /* used as a readiness flag */
             oy.stream = new MemoryStream();
+            oy.data = new ArrayPointer(oy.stream);
             oy.storage = 0;
             return (0);
         }
 
-        public static int ogg_sync_buffer(ref ogg_sync_state oy, long size)
+        public static ArrayPointer ogg_sync_buffer(ogg_sync_state oy, long size)
         {
-            if (ogg_sync_check(ref oy) != 0) return -1;
+            if (ogg_sync_check(oy) != 0) return null;
 
             /* first, clear out any space that has been previously returned */
             if (oy.returned != 0)
             {
                 oy.fill -= oy.returned;
                 if (oy.fill > 0)
-                    memmove(oy.stream, oy.data, oy.data + oy.returned, oy.fill);
+                    memmove(oy.data, oy.data + oy.returned, oy.fill);
                 oy.returned = 0;
             }
 
@@ -52,24 +54,6 @@ namespace OggVorbis
             {
                 /* We need to extend the internal buffer */
                 long newsize = size + oy.fill + 4096; /* an extra page to be nice */
-
-                // Stream does no need to reallocate memory //
-
-                //int ret;
-
-
-                //if (oy.data)
-                //    ret = _ogg_realloc(oy.data, newsize);
-                //else
-                //    ret = _ogg_malloc(newsize);
-
-                //if (!ret)
-                //{
-                //    ogg_sync_clear(oy);
-                //    return NULL;
-                //}
-                //oy.data = ret;
-
                 oy.storage = (int)newsize;
             }
 
@@ -77,15 +61,15 @@ namespace OggVorbis
             return oy.data + oy.fill;
         }
 
-        public static int ogg_sync_check(ref ogg_sync_state oy)
+        public static int ogg_sync_check(ogg_sync_state oy)
         {
             if (oy.storage < 0) return -1;
             return 0;
         }
 
-        public static int ogg_sync_wrote(ref ogg_sync_state oy, long bytes)
+        public static int ogg_sync_wrote(ogg_sync_state oy, long bytes)
         {
-            if (ogg_sync_check(ref oy) != 0) return -1;
+            if (ogg_sync_check(oy) != 0) return -1;
             if (oy.fill + bytes > oy.storage) return -1;
             oy.fill += (int)bytes;
             return (0);
@@ -102,10 +86,10 @@ namespace OggVorbis
            Returns pointers into buffered data; invalidated by next call to
            _stream, _clear, _init, or _buffer */
 
-        public static int ogg_sync_pageout(ref ogg_sync_state oy, ref ogg_page og)
+        public static int ogg_sync_pageout(ogg_sync_state oy, ogg_page og)
         {
 
-            if (ogg_sync_check(ref oy) != 0) return 0;
+            if (ogg_sync_check(oy) != 0) return 0;
 
             /* all we need to do is verify a page at the head of the stream
                buffer.  If it doesn't verify, we look for the next potential
@@ -113,7 +97,7 @@ namespace OggVorbis
 
             for (; ; )
             {
-                long ret = ogg_sync_pageseek(ref oy, ref og);
+                long ret = ogg_sync_pageseek(oy, og);
                 if (ret > 0)
                 {
                     /* have a page */
@@ -133,7 +117,6 @@ namespace OggVorbis
                 }
 
                 /* loop. keep looking */
-
             }
         }
 
@@ -146,13 +129,13 @@ namespace OggVorbis
            n) page synced at current location; page length n bytes
 
         */
-        public static long ogg_sync_pageseek(ref ogg_sync_state oy, ref ogg_page og)
+        public static long ogg_sync_pageseek(ogg_sync_state oy, ogg_page og)
         {
-            int page = oy.data + oy.returned;
-            int next;
+            ArrayPointer page = oy.data + oy.returned;
+            ArrayPointer next;
             long bytes = oy.fill - oy.returned;
 
-            if (ogg_sync_check(ref oy) != 0) return 0;
+            if (ogg_sync_check(oy) != 0) return 0;
 
             if (oy.headerbytes == 0)
             {
@@ -160,15 +143,15 @@ namespace OggVorbis
                 if (bytes < 27) return (0); /* not enough for a header */
 
                 /* verify capture pattern */
-                if (memcmp(oy.stream, page, "OggS", 4) != 0) goto sync_fail;
+                if (memcmp(page, "OggS", 4) != 0) goto sync_fail;
 
-                headerbytes = oy.stream.ReadAt(page + 26) + 27;
+                headerbytes = page[26] + 27;
                 if (bytes < headerbytes) return (0); /* not enough for header + seg table */
 
                 /* count up body length in the segment table */
 
-                for (i = 0; i < oy.stream.ReadAt(page + 26); i++)
-                    oy.bodybytes += oy.stream.ReadAt(page + 27 + i);
+                for (i = 0; i < page[26]; i++)
+                    oy.bodybytes += page[27 + i];
                 oy.headerbytes = headerbytes;
             }
 
@@ -180,24 +163,23 @@ namespace OggVorbis
                 var chksum = new byte[4];
                 ogg_page log = new ogg_page();
 
-                oy.stream.memcpy(chksum, page + 22, 4);
-                oy.stream.memset(page + 22, 0, 4);
+                memcpy(chksum, page + 22, 4);
+                memset(page + 22, 0, 4);
 
                 /* set up a temp page struct and recompute the checksum */
-                log.stream = oy.stream;
                 log.header = page;
                 log.header_len = oy.headerbytes;
                 log.body = page + oy.headerbytes;
                 log.body_len = oy.bodybytes;
-                ogg_page_checksum_set(ref log);
+                ogg_page_checksum_set(log);
 
                 /* Compare */
-                if (oy.stream.memcmp(chksum, page + 22, 4) != 0)
+                if (memcmp(chksum, page + 22, 4) != 0)
                 {
                     /* D'oh.  Mismatch! Corrupt page (or miscapture and not a page
                        at all) */
                     /* replace the computed checksum with the one actually read in */
-                    oy.stream.memcpy(page + 22, chksum, 4);
+                    memcpy(page + 22, chksum, 4);
 
 #if DISABLE_CRC
                     /* Bad checksum. Lose sync */
@@ -208,7 +190,6 @@ namespace OggVorbis
 
             /* yes, have a whole page all ready to go */
             {
-                og.stream = oy.stream;
                 og.header = page;
                 og.header_len = oy.headerbytes;
                 og.body = page + oy.headerbytes;
@@ -227,47 +208,47 @@ namespace OggVorbis
             oy.bodybytes = 0;
 
             /* search for possible capture */
-            next = oy.stream.memchr(page + 1, Convert.ToByte('O'), (int)(bytes - 1));
-            if (next == 0)
+            next = memchr(page + 1, 'O', bytes - 1);
+            if (next == null)
                 next = oy.data + oy.fill;
 
             oy.returned = (int)(next - oy.data);
             return ((long)-(next - page));
         }
 
-        public static void ogg_page_checksum_set(ref ogg_page og)
+        public static void ogg_page_checksum_set(ogg_page og)
         {
             uint crc_reg = 0;
 
             /* safety; needed for API behavior, but not framing code */
-            og.stream.WriteAt(22, 0);
-            og.stream.WriteAt(23, 0);
-            og.stream.WriteAt(24, 0);
-            og.stream.WriteAt(25, 0);
+            og.header[22] = 0;
+            og.header[23] = 0;
+            og.header[24] = 0;
+            og.header[25] = 0;
 
-            crc_reg = _os_update_crc(crc_reg, og.stream, og.header, og.header_len);
-            crc_reg = _os_update_crc(crc_reg, og.stream, og.body, og.body_len);
+            crc_reg = _os_update_crc(crc_reg, og.header, og.header_len);
+            crc_reg = _os_update_crc(crc_reg, og.body, og.body_len);
 
-            og.stream.WriteAt(22, (byte)(crc_reg & 0xff));
-            og.stream.WriteAt(23, (byte)((crc_reg >> 8) & 0xff));
-            og.stream.WriteAt(24, (byte)((crc_reg >> 16) & 0xff));
-            og.stream.WriteAt(25, (byte)((crc_reg >> 24) & 0xff));
+            og.header[22] = (byte)(crc_reg & 0xff);
+            og.header[23] = (byte)((crc_reg >> 8) & 0xff);
+            og.header[24] = (byte)((crc_reg >> 16) & 0xff);
+            og.header[25] = (byte)((crc_reg >> 24) & 0xff);
         }
 
         /* checksum the page */
         /* Direct table CRC; note that this will be faster in the future if we
            perform the checksum simultaneously with other copies */
 
-        static uint _os_update_crc(uint crc, MemoryStream stream, int buffer, int size)
+        static uint _os_update_crc(uint crc, ArrayPointer buffer, int size)
         {
             while (size >= 8)
             {
-                crc ^= ((uint)stream.ReadAt(buffer + 0) << 24) | ((uint)stream.ReadAt(buffer + 1) << 16) | ((uint)stream.ReadAt(buffer + 2) << 8) | ((uint)stream.ReadAt(buffer + 3));
+                crc ^= ((uint)buffer[0] << 24) | ((uint)buffer[1] << 16) | ((uint)buffer[2] << 8) | ((uint)buffer[3]);
 
                 crc = crc_lookup[7][crc >> 24] ^ crc_lookup[6][(crc >> 16) & 0xFF] ^
                       crc_lookup[5][(crc >> 8) & 0xFF] ^ crc_lookup[4][crc & 0xFF] ^
-                      crc_lookup[3][stream.ReadAt(buffer + 4)] ^ crc_lookup[2][stream.ReadAt(buffer + 5)] ^
-                      crc_lookup[1][stream.ReadAt(buffer + 6)] ^ crc_lookup[0][stream.ReadAt(buffer + 7)];
+                      crc_lookup[3][buffer[4]] ^ crc_lookup[2][buffer[5]] ^
+                      crc_lookup[1][buffer[6]] ^ crc_lookup[0][buffer[7]];
 
                 buffer += 8;
                 size -= 8;
@@ -275,10 +256,50 @@ namespace OggVorbis
 
             while (size-- > 0)
             {
-                crc = (crc << 8) ^ crc_lookup[0][((crc >> 24) & 0xff) ^ stream.ReadAt(buffer)];
-                buffer++;
+                crc = (crc << 8) ^ crc_lookup[0][((crc >> 24) & 0xff) ^ buffer[0]];
+                buffer += 1;
             }
             return crc;
+        }
+
+        public static int ogg_page_serialno(ogg_page og)
+        {
+            return og.header[14] |
+                og.header[15] << 8 |
+                og.header[16] << 16 |
+                og.header[17] << 24;
+        }
+
+        /* init the encode/decode logical stream state */
+
+        public static int ogg_stream_init(ogg_stream_state os, int serialno)
+        {
+            os.body_storage = 16 * 1024;
+            os.lacing_storage = 1024;
+
+            os.stream = new MemoryStream();
+            os.body_data = new ArrayPointer(os.stream);      // _ogg_malloc(os.body_storage * sizeof(*os.body_data));
+            os.lacing_vals = new int[os.lacing_storage];   // _ogg_malloc(os.lacing_storage * sizeof(*os.lacing_vals));
+            os.granule_vals = new long[os.lacing_storage]; // _ogg_malloc(os.lacing_storage * sizeof(*os.granule_vals));
+
+            if (os.body_data == null || os.lacing_vals == null || os.granule_vals == null)
+            {
+                ogg_stream_clear(os);
+                return -1;
+            }
+
+            os.serialno = serialno;
+
+            return (0);
+        }
+
+        /* _clear does not free os, only the non-flat storage within */
+        public static int ogg_stream_clear(ogg_stream_state os)
+        {
+            os.body_data = null;
+            os.lacing_vals = null;
+            os.granule_vals = null;
+            return (0);
         }
 
         /* clear non-flat storage within */
