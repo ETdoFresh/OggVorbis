@@ -22,7 +22,7 @@ namespace OggVorbis
 
     public class ogg_packet
     {
-        public byte[] packet;
+        public ArrayPointer packet;
         public long bytes;
         public long b_o_s;
         public long e_o_s;

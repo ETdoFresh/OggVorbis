@@ -49,7 +49,9 @@
     <Compile Include="alloc_chain.cs" />
     <Compile Include="ArrayPointer.cs" />
     <Compile Include="bitrate_manager_info.cs" />
+    <Compile Include="bitwise.cs" />
     <Compile Include="codebook.cs" />
+    <Compile Include="codec.cs" />
     <Compile Include="codec_setup_info.cs" />
     <Compile Include="crctable.cs" />
     <Compile Include="Framing.cs" />
@@ -61,18 +63,28 @@
     <Compile Include="OggPacket.cs" />
     <Compile Include="OggPage.cs" />
     <Compile Include="OS.cs" />
+    <Compile Include="psy.cs" />
+    <Compile Include="registry.cs" />
+    <Compile Include="sharedbook.cs" />
     <Compile Include="static_codebook.cs" />
     <Compile Include="VorbisBlock.cs" />
     <Compile Include="VorbisComment.cs" />
     <Compile Include="VorbisDspState.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="VorbisInfo.cs" />
+    <Compile Include="vorbis_func_floor.cs" />
+    <Compile Include="vorbis_func_mapping.cs" />
+    <Compile Include="vorbis_func_residue.cs" />
     <Compile Include="vorbis_info_floor.cs" />
+    <Compile Include="vorbis_info_floor1.cs" />
     <Compile Include="vorbis_info_mapping.cs" />
     <Compile Include="vorbis_info_mode.cs" />
     <Compile Include="vorbis_info_psy.cs" />
     <Compile Include="vorbis_info_psy_global.cs" />
     <Compile Include="vorbis_info_residue.cs" />
+    <Compile Include="vorbis_look_floor.cs" />
+    <Compile Include="vorbis_look_floor1.cs" />
+    <Compile Include="vorbis_look_residue.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

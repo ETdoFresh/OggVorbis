@@ -19,5 +19,9 @@ namespace OggVorbis
 {
     public class vorbis_info_mode
     {
+        public int blockflag;
+        public int windowtype;
+        public int transformtype;
+        public int mapping;
     }
 }

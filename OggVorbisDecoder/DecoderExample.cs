@@ -32,7 +32,7 @@ namespace OggVorbis
     {
         /* Note that this is POSIX, not ANSI code */
         static ushort[] convbuffer = new ushort[4096]; /* take 8k out of the data segment, not the stack */
-        static long convsize = 4096;
+        //static long convsize = 4096;
 
         public static void Main(string[] args)
         {
@@ -92,8 +92,6 @@ namespace OggVorbis
                     exit(1);
                 }
 
-                else { break; } // TODO: ERASE!! DEBUG LINE!!
-
                 /* get the serial number and set up the rest of decode. */
                 /* serialno first; use it to set up a logical stream */
                 ogg_stream_init(os, ogg_page_serialno(og));
@@ -116,19 +114,19 @@ namespace OggVorbis
                     exit(1);
                 }
 
-                //if (ogg_stream_packetout(os, og) != 1)
-                //{
-                //    /* no page? must not be vorbis */
-                //    fprintf(stderr, "error reading initial header packet.\n");
-                //    exit(1);
-                //}
+                if (ogg_stream_packetout(os, op) != 1)
+                {
+                    /* no page? must not be vorbis */
+                    fprintf(stderr, "error reading initial header packet.\n");
+                    exit(1);
+                }
 
-                //if (vorbis_synthesis_headerin(vi, vc, op) < 0)
-                //{
-                //    /* error case; not a vorbis header */
-                //    fprintf(stderr, "this ogg bitstream does not contain vorbis audio data.\n");
-                //    exit(1);
-                //}
+                if (vorbis_synthesis_headerin(vi, vc, op) < 0)
+                {
+                    /* error case; not a vorbis header */
+                    fprintf(stderr, "this ogg bitstream does not contain vorbis audio data.\n");
+                    exit(1);
+                }
 
                 ////                /* At this point, we're sure we're Vorbis. We've set up the logical
                 ////                   (Ogg) bitstream decoder. Get the comment and codebook headers and

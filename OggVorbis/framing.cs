@@ -569,5 +569,70 @@ namespace OggVorbis
             }
             return 0;
         }
+
+        public static int ogg_stream_packetout(ogg_stream_state os, ogg_packet op)
+        {
+            if (ogg_stream_check(os) != 0) return 0;
+            return _packetout(os, op, 1);
+        }
+
+        public static int _packetout(ogg_stream_state os, ogg_packet op, int adv)
+        {
+
+            /* The last part of decode. We have the stream broken into packet
+               segments.  Now we need to group them into packets (or return the
+               out of sync markers) */
+
+            long ptr = os.lacing_returned;
+
+            if (os.lacing_packet <= ptr) return (0);
+
+            if ((os.lacing_vals[ptr] & 0x400) != 0)
+            {
+                /* we need to tell the codec there's a gap; it might need to
+                   handle previous packet dependencies. */
+                os.lacing_returned++;
+                os.packetno++;
+                return (-1);
+            }
+
+            if (op == null && adv == 0) return (1); /* just using peek as an inexpensive way
+                               to ask if there's a whole packet
+                               waiting */
+
+            /* Gather the whole packet. We'll have no holes or a partial packet */
+            {
+                int size = os.lacing_vals[ptr] & 0xff;
+                long bytes = size;
+                int eos = os.lacing_vals[ptr] & 0x200; /* last packet of the stream? */
+                int bos = os.lacing_vals[ptr] & 0x100; /* first packet of the stream? */
+
+                while (size == 255)
+                {
+                    int val = os.lacing_vals[++ptr];
+                    size = val & 0xff;
+                    if ((val & 0x200) != 0) eos = 0x200;
+                    bytes += size;
+                }
+
+                if (op != null)
+                {
+                    op.e_o_s = eos;
+                    op.b_o_s = bos;
+                    op.packet = os.body_data + os.body_returned;
+                    op.packetno = os.packetno;
+                    op.granulepos = os.granule_vals[ptr];
+                    op.bytes = bytes;
+                }
+
+                if (adv != 0)
+                {
+                    os.body_returned += bytes;
+                    os.lacing_returned = ptr + 1;
+                    os.packetno++;
+                }
+            }
+            return (1);
+        }
     }
 }

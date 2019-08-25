@@ -30,10 +30,10 @@ namespace OggVorbis
     {
         /* unlimited user comment fields.  libvorbis writes 'libvorbis'
            whatever vendor is set to in encode */
-        public byte[][] user_comments;
+        public ArrayPointer[] user_comments;
         public long[] comment_lengths;
         public long comments;
-        public byte[] vendor;
+        public ArrayPointer vendor;
 
     }
 }

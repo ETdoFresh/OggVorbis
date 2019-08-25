@@ -7,7 +7,7 @@
  *                                                                  *
  * THE OggVorbis SOURCE CODE IS (C) COPYRIGHT 1994-2001             *
  * by the Xiph.Org Foundation http://www.xiph.org/                  *
-
+ *                                                                  *
  ********************************************************************
 
  function: libvorbis codec headers
@@ -19,5 +19,11 @@ namespace OggVorbis
 {
     public class oggpack_buffer
     {
+        public long endbyte;
+        public int endbit;
+
+        public ArrayPointer buffer;
+        public ArrayPointer ptr;
+        public long storage;
     }
 }

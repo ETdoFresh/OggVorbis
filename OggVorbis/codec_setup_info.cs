@@ -22,7 +22,7 @@ namespace OggVorbis
         /* Vorbis supports only short and long blocks, but allows the
            encoder to choose the sizes */
 
-        public long[] blocksizes;
+        public long[] blocksizes = new long[2];
 
         /* modes are the primary means of supporting on-the-fly different
            blocksizes, different channel mappings (LR or M/A),
